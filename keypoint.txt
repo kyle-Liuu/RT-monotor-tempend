@@ -1,0 +1,145 @@
+rtsp://admin:kaoe.robot@192.168.1.112:554/h264/ch1/main/av_stream
+rtsp://admin:kaoe.robot@192.168.1.108:554/cam/realmonitor?channel=1&subtype=1
+rtsp://admin:kaoe.robot@192.168.1.169:554/Streaming/Channels/101
+
+※ffmpeg -rtsp_transport tcp -i rtsp://admin:kaoe.robot@192.168.1.169:554/Streaming/Channels/201 -vcodec copy -f rtsp rtsp://127.0.0.1:554/live/cam201
+
+rtsp://192.168.1.74:9554/live/test
+ws://192.168.1.74:9002/live/test.live.mp4
+
+{
+        "wsurl": "",
+        "devicename": "",
+        "groupid": "",
+        "deviceid": "",
+        "groupname": "",
+        "online": False,
+        "started": False
+    }
+
+    点击添加在data中增加一条数据
+{
+        "wsurl": "rtsp://admin:kaoe.robot@192.168.1.169:554/Streaming/Channels/101",
+        "devicename": "未分组设备A",
+        "groupid": "0",
+        "deviceid": "cam54351",
+        "groupname": "未分组设备",
+        "online": False,
+        "started": False
+    }
+    点击转发执行forward api,原始数据中相同deviceid的wsurl改为ws://192.168.1.161:80/live/cam54351.live.mp4，online改为True
+{
+        "wsurl": "ws://192.168.1.161:80/live/cam54351.live.mp4",
+        "devicename": "未分组设备A",
+        "groupid": 0,
+        "deviceid": "cam54351",
+        "groupname": "未分组设备",
+        "online": True,
+        "started": False
+    }
+    点击布控执行detect api,原始数据中相同deviceid的wsurl改为ws://192.168.1.161:80/live/con54351.live.mp4，started改为True
+{
+        "wsurl": "ws://192.168.1.161:80/live/con54351.live.mp4",
+        "devicename": "未分组设备A",
+        "groupid": 0,
+        "deviceid": "cam54351",
+        "groupname": "未分组设备",
+        "online": True,
+        "started": True
+    }
+    点击按钮之后都要刷新一次设备列表
+
+
+
+
+app.router.add_route('POST', '/addStreamProxy', addStreamProxy)  # 开启拉流接口
+app.router.add_route('POST', '/delStreamProxy', delStreamProxy)  # 关闭拉流接口
+app.router.add_route('POST', '/getMediaList', getMediaList)  # 获取所有流列表（筛选）
+app.router.add_route('POST', '/listStreamProxy', listStreamProxy)  # 拉流列表
+app.router.add_route('POST', '/getServerConfig', getServerConfig)  # 获取服务器配置
+
+
+添加rtsp流-->拉流-->新rtsp流
+
+
+
+{
+        "controlCode": "control96009eb847",//该报警所属布控的编号
+  "flowMode": 1,//v4.610新增 1:业务算法模式一，2:业务算法模式二，3:业务算法模式三，4:业务算法模式四，5:业务算法模式五，，，
+  "flowCode": "flow3359751e88",//v4.610新增，关联业务算法编号
+  "flowName": "周界入侵算法",//v4.610新增，关联业务算法名称
+  "drawType": 1,//1：合成报警视频保存画框，0：合成报警视频不画框
+        "flag": "20240924185747",//标记字段，当布控开启（合成报警视频同时保存画框和不画框）时有效，同一份报警信息会产生两份报警数据，该字段标识同一份报警信息
+  "streamApp": "live",//该报警数据所属报警摄像头的转发app
+        "streamName": "test",//该报警数据所属报警摄像头的转发name
+        "streamCode": "test",//该报警数据所属报警摄像头的编号
+        "streamNickname": "test",//该报警数据所属报警摄像头的自定义名称
+        "desc": "desc",//描述信息
+        "videoCount": 1,//本次报警的报警视频片段总数量
+        "videoArray": [{
+                "index": 0,//报警视频序号
+                "videoPath": "alarm/control96009eb847/20240919/140808/1/20240919140808.mp4",//视频文件在xcms的相对路径
+                "videoUrl": "/storage/access?filename=alarm/control96009eb847/20240919/140808/1/20240919140808.mp4",//v4.502新增，访问该视频文件的http后缀地址（访问该地址需要拼接前缀 http://{ip}:9001）
+                "base64Str": "not enabled"//v4.502之后可以通过布控扩展参数is_enable_alarm_image_upload_base64控制该字段是否启用
+        }],
+        "imageCount": 1,//本次报警的报警图片总数量
+        "imageArray": [{
+                "index": 0,//报警图片序号
+                "imagePath": "alarm/control96009eb847/20240919/140808/1/20240919140808.jpg",//图片文件在xcms的相对路径
+                "imageUrl": "/storage/access?filename=alarm/control96009eb847/20240919/140808/1/20240919140808.jpg",//v4.502新增，访问该图片文件的http后缀地址（访问该地址需要拼接前缀 http://{ip}:9001）
+                "base64Str": "not enabled"//v4.502之后可以通过布控扩展参数is_enable_alarm_image_upload_base64控制该字段是否启用
+        }],
+        "imageDetects": [
+                [{ //第一张报警图片的第一个检测目标
+        'x1': 843,//目标左上x
+                        'x2': 972,//目标左上y
+                        'y1': 764,//目标右下x
+                        'y2': 1036,//目标右下y
+                        'class_id': 0,//目标id
+                        'class_name': 'person',//目标名称
+                        'class_score': 0.6867910623550415,//目标得分
+      'region_index': 0, //目标所在区域序号（v4.507以后支持）
+      'keypoints': '',//（v4.506新增）包含pose或人脸关键点检测时，关键点坐标 x1,y1,
+                        'keypoint_count': 0,//（v4.506新增）包含pose或人脸关键点检测时，关键点坐标数量
+                        'classify_class_id': -1,//包含分类时，算法重新计算得到的分类id
+                        'classify_class_name': '',//包含分类时，算法重新计算得到的分类名称
+                        'classify_class_score': 0.0,//包含分类时，算法重新计算得到的得分
+                        'ocr_type': -1,//（v4.617新增）包含OCR算法时，内容类型
+                        'ocr_text': '',//（v4.617新增）包含OCR算法时，内容文本
+                        'ocr_text_score': -1,//（v4.617新增）包含OCR算法时，内容得分
+                        'ocr_text_idx': '',//（v4.617新增）包含OCR算法时，内容序号
+                        'ocr_color': -1,//（v4.617新增）包含OCR算法时，内容颜色 
+                        'track_cx': 0,//包含追踪算法时，该目标当前出现时center的x坐标
+                        'track_cy': 0,//包含追踪算法时，该目标当前出现时center的y坐标
+                        'track_id': -1,//包含追踪算法时，该目标追踪id
+                        'track_last_cx': 0,//包含追踪算法时，该目标上一次出现时center的x坐标
+                        'track_last_cy': 0,//包含追踪算法时，该目标上一次出现时center的y坐标
+      'track_max_similary': 0,//（v4.506新增）包含追踪算法时，目标匹配最大相似度
+      'track_max_code': 0,//（v4.506新增）包含追踪算法时，目标匹配最大相似度对应编号
+      'track_max_custom_code': 0//（v4.506新增）包含追踪算法时，目标匹配最大相似度对应自定义编号
+                }]
+        ],
+        "extendParams": {
+                "version": "4.503",
+                "flag": "pub20240113"
+        },
+        "createTime": "2024/09/24 16:18:10"
+}
+
+预警抓拍的部分，数据为动态数据，由后端提供，该怎么改
+{
+        'snap_id':'snap123456789a',//抓拍id
+        'snap_imgurl':'snap/snap123456789a.jpg',//抓拍图片地址
+        'snap_videourl':'snap/snap123456789a.mp4',//抓拍视频地址
+        'snap_time':,'2024-01-05 15:45:36'//抓拍时间
+        'algo_name':'火焰检测',//算法名称
+        'algo_id':'algo123456789a',//算法id
+        'device_name':'模拟摄像头A',//设备名称
+        'device_id':'cam123456789a',//设备id
+        'process_level':2,//处理等级 0:一般 1:重要 2:紧急
+        'process_status':2,//处理状态 0:未处理 1:误报 2:已处理
+        'process_user':'admin',//处理人
+        'process_userid':'user123456789a',//处理人id
+        'process_time':'2025-01-05 15:45:36',//处理时间
+        'process_remark':'xxx',//处理备注
+}
