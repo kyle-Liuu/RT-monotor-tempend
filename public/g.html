@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能监控平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+    <script src="./js/2.6.14_vue.min.js"></script>
+    <script src="./js/EasyPlayer-pro.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #0a1128 0%, #1e3c72 100%);
+            color: #00d4ff;
+            overflow: hidden;
+            /* Ensure no overall scrollbar */
+            height: 100vh;
+            font-size: 12px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 212, 255, 0.1) 0%, transparent 50%);
+            z-index: -1;
+        }
+
+
+        .header {
+            width: 100%;
+            height: 80px;
+            background: linear-gradient(to right, #0a1128, #1e3c72, #0a1128);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid #00d4ff;
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+            letter-spacing: 2px;
+            animation: pulse 2s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                transform: scale(1);
+            }
+
+            to {
+                transform: scale(1.02);
+            }
+        }
+
+        .header .time {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: #a0f0ff;
+            text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .left-panel,
+        .right-panel {
+            width: 25%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .center-panel {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .panel-box {
+            background: rgba(14, 30, 63, 0.7);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+            padding: 15px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-box::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            right: -1px;
+            bottom: -1px;
+            border: 1px solid rgba(0, 212, 255, 0.5);
+            border-radius: 8px;
+            pointer-events: none;
+            /* Allow clicks to pass through */
+        }
+
+        .panel-box h3 {
+            color: #00d4ff;
+            font-size: 18px;
+            margin-bottom: 10px;
+            text-align: center;
+            border-bottom: 1px dashed rgba(0, 212, 255, 0.5);
+            padding-bottom: 8px;
+        }
+
+        /* Adjustments for specific panel heights */
+        .left-panel .panel-box:nth-child(1),
+        .right-panel .panel-box:nth-child(1) {
+            height: 35%;
+        }
+
+        .left-panel .panel-box:nth-child(2),
+        .right-panel .panel-box:nth-child(2) {
+            height: 65%;
+        }
+
+
+        /* Center Panel - Video Players */
+        .center-panel .panel-box {
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            /* Responsive grid for players */
+            grid-gap: 10px;
+            overflow-y: auto;
+            /* Scroll for many players */
+        }
+
+        .video-player {
+            width: 100%;
+            height: 250px;
+            /* Fixed height for each player */
+            background-color: #000;
+            border: 1px solid #00d4ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-size: 14px;
+            position: relative;
+            overflow: hidden;
+            /* Ensure player content stays within bounds */
+        }
+
+        .video-player .player-id {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #00d4ff;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            z-index: 1;
+        }
+
+        /* Specific styles for charts */
+        #cpu-chart,
+        .gauge-chart,
+        #device-list {
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        #device-list {
+            overflow-y: auto;
+            /* Scroll for device list */
+            max-height: calc(100% - 40px);
+            /* Adjust based on h3 height */
+        }
+
+        .device-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 5px;
+            border-bottom: 1px dashed rgba(0, 212, 255, 0.3);
+            font-size: 14px;
+        }
+
+        .device-item:last-child {
+            border-bottom: none;
+        }
+
+        .device-item span {
+            color: #fff;
+        }
+
+        .device-item .status {
+            font-weight: bold;
+        }
+
+        .device-item .status.online {
+            color: #00ff00;
+            /* Green for online */
+        }
+
+        .device-item .status.offline {
+            color: #ff0000;
+            /* Red for offline */
+        }
+
+        .chart-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .gauge-chart {
+            width: 100%;
+            height: 100%;
+            min-height: 120px;
+        }
+
+        .gauges-wrapper {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        .storage-bar-container {
+            width: 100%;
+            height: 20px;
+            background-color: rgba(0, 212, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .storage-bar-fill {
+            height: 100%;
+            background-color: #00d4ff;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+            position: relative;
+        }
+
+        .storage-bar-label {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #0a1128;
+            font-weight: bold;
+            font-size: 12px;
+            text-shadow: 0 0 2px rgba(0, 212, 255, 0.8);
+        }
+
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: #00d4ff;
+            color: #0a1128;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+            transition: transform 0.1s ease-in-out, background-color 0.3s ease;
+            z-index: 11;
+        }
+
+        .back-button:hover {
+            background-color: #00a0e9;
+        }
+    </style>
+</head>
+
+<body>
+    <button class="back-button">返回后台</button>
+    <div id="app">
+        <div class="header">
+            <h1>智能监控平台</h1>
+            <div class="time">{{ currentTime }}</div>
+        </div>
+        <div class="main-container">
+            <div class="left-panel">
+                <div class="panel-box">
+                    <h3>CPU 使用率</h3>
+                    <div id="cpu-chart" class="chart-container"></div>
+                </div>
+                <div class="panel-box">
+                    <h3>系统信息</h3>
+                    <div class="gauges-wrapper">
+                        <div id="memory-chart" class="gauge-chart"></div>
+                        <div id="disk-chart" class="gauge-chart"></div>
+                    </div>
+                    <div class="storage-info">
+                        <h3>存储使用</h3>
+                        <div class="storage-bar-container">
+                            <div class="storage-bar-fill" :style="{ width: storagePercent + '%' }">
+                                <span class="storage-bar-label">{{ storagePercent }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="center-panel">
+                <div class="panel-box">
+                    <h3>监控画面</h3>
+                    <template v-if="deviceList.length > 0">
+                        <div v-for="device in deviceList" :key="device.DeviceId" class="video-player">
+                            <span class="player-id">{{ device.DeviceId }}</span>
+                            <div :id="'player-' + device.DeviceId" style="width: 100%; height: 100%;"></div>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <p style="text-align: center; color: #fff; margin-top: 20px;">暂无设备在线</p>
+                    </template>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="panel-box">
+                    <h3>流量统计</h3>
+                    <div id="traffic-chart" class="chart-container"></div>
+                </div>
+                <div class="panel-box">
+                    <h3>设备列表</h3>
+                    <div id="device-list">
+                        <div v-for="device in deviceList" :key="device.DeviceId" class="device-item">
+                            <span>{{ device.DeviceId }}</span>
+                            <span :class="['status', device.status === 'online' ? 'online' : 'offline']">
+                                {{ device.status === 'online' ? '在线' : '离线' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                currentTime: '',
+                cpuChart: null,
+                memoryChart: null,
+                diskChart: null,
+                trafficChart: null,
+                storagePercent: 0,
+                deviceList: [],
+                players: [], // Array to store EasyPlayer instances
+            },
+            methods: {
+                updateTime() {
+                    const now = new Date();
+                    const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+                    this.currentTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${weekdays[now.getDay()]} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+                },
+                initCpuChart() {
+                    this.cpuChart = echarts.init(document.getElementById('cpu-chart'));
+                    const option = {
+                        grid: {
+                            left: '5%',
+                            right: '5%',
+                            top: '15%',
+                            bottom: '10%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            boundaryGap: false,
+                            data: Array.from({
+                                length: 10
+                            }, (_, i) => ''),
+                            axisLabel: {
+                                color: '#a0f0ff'
+                            },
+                            axisLine: {
+                                lineStyle: {
+                                    color: '#00d4ff'
+                                }
+                            }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            name: '使用率 (%)',
+                            nameTextStyle: {
+                                color: '#a0f0ff'
+                            },
+                            min: 0,
+                            max: 100,
+                            axisLabel: {
+                                formatter: '{value}%',
+                                color: '#a0f0ff'
+                            },
+                            axisLine: {
+                                lineStyle: {
+                                    color: '#00d4ff'
+                                }
+                            },
+                            splitLine: {
+                                lineStyle: {
+                                    color: 'rgba(0, 212, 255, 0.2)'
+                                }
+                            }
+                        },
+                        series: [{
+                            name: 'CPU使用率',
+                            type: 'line',
+                            smooth: true,
+                            symbol: 'none',
+                            lineStyle: {
+                                width: 2,
+                                color: '#00d4ff'
+                            },
+                            areaStyle: {
+                                opacity: 0.8,
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
+                                    offset: 0,
+                                    color: 'rgba(0, 212, 255, 0.5)'
+                                }, {
+                                    offset: 1,
+                                    color: 'rgba(0, 212, 255, 0)'
+                                }])
+                            },
+                            data: Array.from({
+                                length: 10
+                            }, () => Math.floor(Math.random() * 50) + 20) // Random initial data
+                        }],
+                        tooltip: {
+                            trigger: 'axis',
+                            formatter: '{c}%',
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1,
+                            textStyle: {
+                                color: '#fff'
+                            }
+                        }
+                    };
+                    this.cpuChart.setOption(option);
+
+                    setInterval(() => {
+                        const data = option.series[0].data;
+                        data.shift();
+                        data.push(Math.floor(Math.random() * 50) + 20); // New random CPU usage
+                        this.cpuChart.setOption({
+                            series: [{
+                                data: data
+                            }]
+                        });
+                    }, 3000); // Update every 3 seconds
+                },
+                initGaugeCharts() {
+                    this.memoryChart = echarts.init(document.getElementById('memory-chart'));
+                    this.diskChart = echarts.init(document.getElementById('disk-chart'));
+
+                    const getGaugeOption = (title, value) => ({
+                        series: [{
+                            type: 'gauge',
+                            startAngle: 180,
+                            endAngle: 0,
+                            center: ['50%', '75%'],
+                            radius: '90%',
+                            min: 0,
+                            max: 100,
+                            splitNumber: 5,
+                            axisLine: {
+                                lineStyle: {
+                                    width: 10,
+                                    color: [
+                                        [0.6, '#00d4ff'],
+                                        [0.8, '#ffcc00'],
+                                        [1, '#ff4500']
+                                    ]
+                                }
+                            },
+                            pointer: {
+                                icon: 'path://M12.8,0.7l12.3,10.8L25.8,0.7z',
+                                length: '75%',
+                                width: 8,
+                                offsetCenter: [0, '-10%'],
+                                itemStyle: {
+                                    color: 'auto'
+                                }
+                            },
+                            axisTick: {
+                                distance: -5,
+                                length: 5,
+                                lineStyle: {
+                                    color: '#fff',
+                                    width: 1
+                                }
+                            },
+                            splitLine: {
+                                distance: -10,
+                                length: 10,
+                                lineStyle: {
+                                    color: '#fff',
+                                    width: 2
+                                }
+                            },
+                            axisLabel: {
+                                color: '#a0f0ff',
+                                distance: 10,
+                                fontSize: 10
+                            },
+                            detail: {
+                                valueAnimation: true,
+                                formatter: '{value}%',
+                                color: '#00d4ff',
+                                fontSize: 20,
+                                offsetCenter: [0, '-25%']
+                            },
+                            data: [{
+                                value: value,
+                                name: title,
+                                title: {
+                                    offsetCenter: [0, '25%'],
+                                    fontSize: 14,
+                                    color: '#a0f0ff'
+                                }
+                            }]
+                        }]
+                    });
+
+                    this.memoryChart.setOption(getGaugeOption('内存', Math.floor(Math.random() * 50) + 30));
+                    this.diskChart.setOption(getGaugeOption('磁盘', Math.floor(Math.random() * 40) + 50));
+
+                    setInterval(() => {
+                        this.memoryChart.setOption(getGaugeOption('内存', Math.floor(Math.random() * 50) + 30));
+                        this.diskChart.setOption(getGaugeOption('磁盘', Math.floor(Math.random() * 40) + 50));
+                    }, 5000);
+                },
+                initTrafficChart() {
+                    this.trafficChart = echarts.init(document.getElementById('traffic-chart'));
+                    const option = {
+                        grid: {
+                            left: '10%',
+                            right: '10%',
+                            top: '15%',
+                            bottom: '10%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], // Placeholder for time
+                            axisLabel: {
+                                color: '#a0f0ff'
+                            },
+                            axisLine: {
+                                lineStyle: {
+                                    color: '#00d4ff'
+                                }
+                            }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            name: '流量 (MB/s)',
+                            nameTextStyle: {
+                                color: '#a0f0ff'
+                            },
+                            axisLabel: {
+                                color: '#a0f0ff'
+                            },
+                            axisLine: {
+                                lineStyle: {
+                                    color: '#00d4ff'
+                                }
+                            },
+                            splitLine: {
+                                lineStyle: {
+                                    color: 'rgba(0, 212, 255, 0.2)'
+                                }
+                            }
+                        },
+                        series: [{
+                            name: '实时流量',
+                            type: 'bar',
+                            data: Array.from({
+                                length: 10
+                            }, () => Math.random() * 10), // Random initial data
+                            itemStyle: {
+                                color: new echarts.graphic.LinearGradient(
+                                    0, 0, 0, 1, [{
+                                        offset: 0,
+                                        color: '#00d4ff'
+                                    }, {
+                                        offset: 1,
+                                        color: '#1e3c72'
+                                    }]
+                                )
+                            }
+                        }],
+                        tooltip: {
+                            trigger: 'axis',
+                            formatter: '{c} MB/s',
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1,
+                            textStyle: {
+                                color: '#fff'
+                            }
+                        }
+                    };
+                    this.trafficChart.setOption(option);
+
+                    setInterval(() => {
+                        const data = option.series[0].data;
+                        data.shift();
+                        data.push(parseFloat((Math.random() * 10).toFixed(2))); // New random traffic
+                        this.trafficChart.setOption({
+                            series: [{
+                                data: data
+                            }]
+                        });
+                    }, 2000); // Update every 2 seconds
+                },
+                // Added destroyPlayers method
+                destroyPlayers() {
+                    if (this.players.length > 0) {
+                        this.players.forEach(player => {
+                            try {
+                                player.destroy();
+                                console.log('播放器销毁成功');
+                            } catch (error) {
+                                console.error('销毁播放器失败:', error);
+                            }
+                        });
+                        this.players = []; // Clear the players array
+                    }
+                },
+                createPlayers() {
+                    this.destroyPlayers(); // Destroy existing players before creating new ones
+                    this.$nextTick(() => {
+                        this.deviceList.forEach(device => {
+                            const playerId = 'player-' + device.DeviceId;
+                            const element = document.getElementById(playerId);
+                            if (element && device.status === 'online') {
+                                try {
+                                    const player = new EasyPlayer(playerId, {
+                                        source: device.RTSP, // Assuming device.RTSP contains the stream URL
+                                        // Other EasyPlayer options if needed
+                                        autoplay: true,
+                                        live: true,
+                                        loop: true,
+                                        // muted: true, // You might want to mute autoplay videos
+                                    });
+                                    this.players.push(player);
+                                    console.log(`播放器 ${device.DeviceId} 创建成功，播放地址: ${device.RTSP}`);
+                                } catch (e) {
+                                    console.error(`创建播放器 ${device.DeviceId} 失败:`, e);
+                                    if (element) {
+                                        element.innerHTML = `<p style="color:red;">播放器加载失败：${e.message || '未知错误'}</p>`;
+                                    }
+                                }
+                            } else if (element && device.status === 'offline') {
+                                element.innerHTML = `<p style="color:gray;">设备 ${device.DeviceId} 离线</p>`;
+                            }
+                        });
+                    });
+                },
+                async fetchDeviceList() {
+                    try {
+                        const response = await fetch('http://192.168.1.74:9001/getDevList');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        // Assuming data.code is for success and data.data is the device list
+                        if (data.code === 0 && data.data && Array.isArray(data.data)) {
+                            this.deviceList = data.data.map(dev => ({
+                                ...dev,
+                                // Add a dummy status for demonstration if your API doesn't provide it
+                                status: Math.random() > 0.2 ? 'online' : 'offline'
+                            }));
+                            this.createPlayers();
+                        } else {
+                            console.error('Failed to fetch device list:', data.message || 'Unknown error');
+                            this.deviceList = []; // Clear list on failure
+                            this.destroyPlayers(); // Destroy players if no devices are fetched or an error occurs
+                        }
+                    } catch (error) {
+                        console.error('Error fetching device list:', error);
+                        this.deviceList = []; // Clear list on error
+                        this.destroyPlayers(); // Destroy players on error
+                    }
+                },
+                updateStorageBar(percent) {
+                    this.storagePercent = percent;
+                    const label = document.querySelector('.storage-bar-label');
+                    if (label) {
+                        label.textContent = percent + '%';
+                    }
+                },
+            },
+            mounted() {
+                // 在DOM完全加载并Vue实例挂载后，初始化所有图表和数据
+                this.$nextTick(() => {
+                    setTimeout(() => { // Add delay for DOM to settle
+                        this.initCpuChart();
+                        this.initGaugeCharts();
+                        this.initTrafficChart(); // Initialize traffic chart
+                        this.createPlayers(); // This will be called by fetchDeviceList, but good to have here for initial setup
+                        this.updateTime();
+                        setInterval(this.updateTime, 1000);
+
+                        this.fetchDeviceList();
+                        setInterval(this.fetchDeviceList, 30000); // 每30秒更新一次设备列表
+
+                        // 初始化存储条
+                        this.updateStorageBar(45);
+                        setInterval(() => {
+                            const percent = Math.floor(Math.random() * 31) + 40; // 40-70之间的随机数
+                            this.updateStorageBar(percent);
+                        }, 5000); // 每5秒更新一次
+                    }, 100);
+                });
+            },
+        });
+
+        // 后台按钮点击事件
+        document.querySelector('.back-button').addEventListener('click', function () {
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+                window.location.href = 'http://192.168.1.74:9001/control/index'; // Uncommented this line
+                // console.log('返回后台'); // Can remove or keep for debugging
+            }, 150);
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,2131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能监控平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+    <script src="./js/2.6.14_vue.min.js"></script>
+    <script src="./js/EasyPlayer-pro.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #0a1128 0%, #1e3c72 100%);
+            color: #00d4ff;
+            overflow: hidden;
+            height: 100vh;
+            font-size: 12px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 123, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(0, 255, 127, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(90deg, transparent 98%, rgba(0, 212, 255, 0.1) 100%),
+                linear-gradient(0deg, transparent 98%, rgba(0, 212, 255, 0.1) 100%);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            100% {
+                transform: translate(50px, 50px);
+            }
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 123, 255, 0.2) 100%);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            padding: 0 30px;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                left: -100%;
+            }
+
+            100% {
+                left: 100%;
+            }
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px #00d4ff;
+            flex-grow: 1;
+            text-align: center;
+            margin-left: 0;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .back-button {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border: none;
+            color: #000;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .back-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .back-button:hover::before {
+            left: 100%;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(0, 212, 255, 0.8);
+        }
+
+        .left-panel,
+        .right-panel {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            /* justify-content: space-around; */
+            /* justify-content: flex-start; */
+            /* justify-content: space-between; */
+            /* Changed to column for flexible height distribution */
+        }
+
+        /* Module sections for consistent styling and dividers */
+        .module-section {
+            margin-bottom: 20px;
+            /* Adjusted margin */
+            padding-bottom: 20px;
+            /* Adjusted padding */
+            /* border-bottom: 2px solid rgba(0, 212, 255, 0.3); */
+            position: relative;
+        }
+
+        .module-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .module-section::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 10%;
+            width: 80%;
+            height: 2px;
+            /* background: linear-gradient(90deg,
+                    transparent 0%,
+                    rgba(0, 212, 255, 0.5) 20%,
+                    rgba(0, 212, 255, 0.5) 80%,
+                    transparent 100%); */
+        }
+
+        .module-section.device-list-module {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            /* Allow shrinking below content size */
+        }
+
+        .module-section.cpu-module-section,
+        .module-section.storage-module-section {
+            flex-shrink: 0;
+        }
+
+        .left-panel::before,
+        .right-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 212, 255, 0.05), transparent);
+            animation: panelScan 8s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes panelScan {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-rows: 1fr;
+            gap: 10px;
+        }
+
+        .video-section {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-width: 400px;
+        }
+
+        .video-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            animation: scanLine 3s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanLine {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .video-frame {
+            flex-grow: 1;
+            background: #1a1a2e;
+            border: 2px solid #00d4ff;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            box-shadow:
+                inset 0 0 50px rgba(0, 212, 255, 0.1),
+                0 0 30px rgba(0, 212, 255, 0.2);
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            min-width: 400px;
+            min-height: 250px;
+            aspect-ratio: 16/9;
+        }
+
+        .video-frame::before {
+            content: none;
+        }
+
+        .video-frame.screen-1 {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+            gap: 0;
+        }
+
+        .video-frame.screen-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 2px;
+        }
+
+        .player-box {
+            background: #000;
+            border: 1px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            z-index: 2;
+        }
+
+        .video-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 10px 0;
+            margin-top: 10px;
+            border-top: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        .control-btn {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border: none;
+            color: #000;
+            padding: 6px 15px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 15px rgba(0, 212, 255, 0.6);
+        }
+
+        .section-title {
+            color: #00d4ff;
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .video-title-bar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0;
+            position: relative;
+        }
+
+        .video-title-bar .time-display {
+            margin-bottom: 0;
+            margin-left: 0;
+            font-size: 12px;
+            color: #00d4ff;
+            background: none;
+            border: none;
+            padding: 0 40px 0 20px;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '>>>';
+            position: absolute;
+            right: 0;
+            top: 0;
+            color: #00d4ff;
+            font-size: 10px;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0.3;
+            }
+        }
+
+        /* Treeview styles */
+        .tree-view-wrapper {
+            /* height: 33vh; */
+            /* Calc height: 100vh - header_height - panel_padding_top/bottom - (module_section_margin_bottom + padding_bottom + section_title_height + section_title_margin_bottom) * 2 - cpu_labels_height */
+            /* Rough estimate: 100vh - 60px - 30px - (15+15+22+10)*2 - 15px */
+            /* max-height: calc(100vh - 510px); */
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+
+        .tree-view ul {
+            list-style-type: none;
+            padding-left: 15px;
+            margin: 0;
+        }
+
+        .tree-view li {
+            position: relative;
+            padding: 2px 0;
+        }
+
+        .tree-view li::before {
+            content: ' ';
+            position: absolute;
+            left: 5px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .tree-view li:last-child::before {
+            height: 12px;
+        }
+
+        .tree-view li::after {
+            content: ' ';
+            position: absolute;
+            left: 5px;
+            top: 10px;
+            width: 8px;
+            height: 1px;
+            background-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .tree-view .node-content {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            margin: 2px 0;
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 11px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .tree-view .node-content:hover {
+            background: rgba(0, 212, 255, 0.2);
+            transform: translateX(5px);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        }
+
+        .tree-view .node-content .indicator {
+            margin-right: 6px;
+            width: 12px;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .tree-view .node-content .indicator.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .tree-view .nested {
+            display: none;
+            padding-left: 15px;
+        }
+
+        .tree-view .nested.active {
+            display: block;
+        }
+
+        .tree-view .indicator {
+            display: inline-block;
+            width: 12px;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .tree-view .indicator.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .cpu-chart-container {
+            height: 120px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            margin-top: 10px;
+            /* Prevent shrinking */
+        }
+
+        .storage-chart-container {
+            height: 80px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            margin-top: 10px;
+            /* Prevent shrinking */
+        }
+
+        .storage-x-axis-labels {
+            position: absolute;
+            bottom: 5px;
+            left: 0;
+            right: 0;
+            font-size: 8px;
+            color: #00d4ff;
+            text-align: center;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 10px;
+        }
+
+
+        .gauge-wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            text-align: left;
+        }
+
+        .gauge-container {
+            width: 80px;
+            height: 80px;
+            margin: auto;
+        }
+
+        .stat-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+            font-size: 12px;
+            color: #00d4ff;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .alert-list-wrapper {
+            /* max-height: calc(100vh - 330px); */
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin: 6px 0;
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+
+        .alert-item:hover {
+            background: rgba(0, 212, 255, 0.2);
+            transform: translateX(3px);
+        }
+
+        .alert-item::before {
+            content: '';
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            width: 8px;
+            height: 8px;
+            background: #ff4444;
+            border-radius: 50%;
+            animation: alertBlink 2s infinite;
+        }
+
+        @keyframes alertBlink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .alert-icon {
+            width: 40px;
+            height: 50px;
+            background: #00d4ff;
+            border-radius: 4px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .alert-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .alert-info {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-size: 14px;
+            color: #00d4ff;
+            margin-bottom: 2px;
+        }
+
+        .alert-time {
+            font-size: 11px;
+            color: rgba(0, 212, 255, 0.7);
+        }
+
+        .alert-location {
+            font-size: 11px;
+            color: #00d4ff;
+            margin-top: 2px;
+        }
+
+        .time-display {
+            text-align: center;
+            font-size: 12px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            position: relative;
+            z-index: 1;
+            flex-shrink: 0;
+        }
+
+        /* Custom scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00d4ff;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0099cc;
+        }
+
+        #storage-bar-echart {
+            background: #122b4d;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #00d4ff44 inset;
+            border: 1px solid #00d4ff;
+        }
+
+        .storage-bar-outer {
+            position: relative;
+            width: 100%;
+            height: 80px;
+            background: #122b4d;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #00d4ff44 inset;
+            border: 1px solid #00d4ff;
+            overflow: hidden;
+        }
+
+        .storage-bar-inner {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            height: 60px;
+            background: linear-gradient(45deg, transparent 49%, #00d4ff 50%, transparent 51%);
+            background-size: 10px 10px;
+            animation: chartMove 5s linear infinite;
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes chartMove {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: 100px 0;
+            }
+        }
+
+        .storage-bar-label {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #00d4ff;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 2;
+            text-shadow: 0 0 8px #00d4ff88;
+        }
+
+        .screen-switch {
+            display: flex;
+            gap: 8px;
+            padding-right: 30px;
+            align-items: center;
+        }
+
+        .screen-btn,
+        .fullscreen-btn,
+        .control-icon {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px;
+            color: #00d4ff;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            border: none;
+            background: none;
+        }
+
+        .screen-btn svg,
+        .fullscreen-btn svg,
+        .control-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+            transition: all 0.2s;
+        }
+
+        .screen-btn.active,
+        .screen-btn:hover,
+        .fullscreen-btn:hover,
+        .control-icon:hover {
+            color: #00d4ff;
+            transform: scale(1.1);
+        }
+
+        .screen-btn.active svg,
+        .screen-btn:hover svg,
+        .fullscreen-btn:hover svg,
+        .control-icon:hover svg {
+            fill: #00d4ff;
+            filter: drop-shadow(0 0 4px #00d4ff);
+        }
+
+        .divider {
+            width: 1px;
+            height: 20px;
+            background-color: #00d4ff;
+            margin: 0 8px;
+            opacity: 0.5;
+        }
+
+        /* 响应式布局样式 */
+        @media screen and (max-width: 1400px) {
+            .container {
+                grid-template-columns: 250px 1fr 300px;
+            }
+
+            .header {
+                padding: 0 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+                margin-left: 0;
+            }
+
+            .video-frame {
+                min-width: 350px;
+            }
+
+            .cpu-chart-container {
+                height: 100px;
+            }
+        }
+
+        @media screen and (max-width: 1200px) {
+            .container {
+                grid-template-columns: 200px 1fr 250px;
+            }
+
+            .header {
+                padding: 0 15px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+                margin-left: 0;
+            }
+
+            .section-title {
+                font-size: 13px;
+            }
+
+            .control-btn {
+                padding: 4px 12px;
+                font-size: 11px;
+            }
+
+            .cpu-chart-container {
+                height: 90px;
+            }
+
+            .gauge-wrapper .stat-text {
+                display: none !important;
+            }
+        }
+
+        @media screen and (max-width: 992px) {
+            .container {
+                grid-template-columns: 180px 1fr 200px;
+                gap: 5px;
+                padding: 5px;
+            }
+
+            .header {
+                padding: 0 10px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+                margin-left: 0;
+            }
+
+            .back-button {
+                padding: 6px 15px;
+                font-size: 12px;
+            }
+
+            .video-title-bar .time-display {
+                display: none;
+            }
+
+            .left-panel,
+            .right-panel {
+                padding: 10px;
+            }
+
+            .module-section {
+                margin-bottom: 15px;
+                padding-bottom: 15px;
+            }
+
+            .gauge-wrapper .stat-text {
+                display: none !important;
+            }
+
+            .cpu-chart-container {
+                height: 80px;
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto;
+                gap: 5px;
+                overflow-x: hidden;
+            }
+
+            .header {
+                padding: 0 15px;
+                height: 50px;
+                margin-bottom: 5px;
+            }
+
+            .header h1 {
+                font-size: 16px;
+                letter-spacing: 2px;
+            }
+
+            .back-button {
+                padding: 4px 12px;
+                font-size: 11px;
+            }
+
+            .left-panel,
+            .right-panel {
+                display: flex;
+                flex-direction: column;
+                /* Use column for mobile */
+                height: auto;
+                /* Allow height to adjust */
+                /* min-height: 550px; */
+                /* Minimum height to ensure content is visible */
+                /* overflow-y: auto; */
+                overflow: visible;
+                /* Changed from hidden */
+            }
+
+            .module-section {
+                /* Keep fixed height sections from shrinking */
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                /* max-height: 200px; */
+            }
+
+            .module-section.device-list-module,
+            .module-section.alert-capture-module {
+                flex-grow: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .module-section:last-child {
+                flex-grow: 1;
+                /* Alert list/tree-view grows */
+                /* overflow-y: auto; */
+                /* Add scroll for growing sections */
+            }
+
+            .main-content {
+                grid-column: 1 / -1;
+            }
+
+            .video-section {
+                min-width: 100%;
+            }
+
+            .video-frame {
+                min-width: 100%;
+                aspect-ratio: 16/9;
+            }
+
+            .screen-switch {
+                padding-right: 10px;
+            }
+
+            .tree-view-wrapper {
+                height: auto;
+                /* Let flex-grow handle height */
+                /* min-height: 100px; */
+                flex-grow: 1;
+                max-height: 33vh;
+                /* Set max height for device list */
+            }
+
+            .cpu-chart-container {
+                height: 140px;
+            }
+
+            .gauge-wrapper .stat-text {
+                display: flex !important;
+                font-size: 10px;
+            }
+
+            /* 小屏幕下隐藏section-title的after元素 */
+            .section-title::after {
+                display: none;
+            }
+
+            /* Hide CPU and Storage modules on small screens */
+            .cpu-module-section,
+            .storage-module-section {
+                display: none;
+            }
+
+            .alert-list-wrapper {
+                flex-grow: 1;
+                max-height: 500px;
+                /* Set max height for alert list on small screens */
+            }
+
+            .device-status-module {
+                display: none;
+                /* Hide device status module on small screens */
+            }
+
+            .player-box {
+                background: #000;
+                border: 1px solid #00d4ff;
+                border-radius: 4px;
+                position: relative;
+            }
+        }
+
+        /* 添加打印样式 */
+        @media print {
+            .container {
+                display: block;
+            }
+
+            .header,
+            .left-panel,
+            .right-panel {
+                display: none;
+            }
+
+            .main-content {
+                width: 100%;
+            }
+
+            .video-section {
+                border: none;
+                background: none;
+            }
+        }
+
+        /* 设备状态样式 */
+        .device-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        .status-offline {
+            background-color: #ff4444;
+        }
+
+        .status-standby {
+            background-color: #ffbb33;
+        }
+
+        .status-started {
+            background-color: #00C851;
+        }
+
+        .node-content {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            margin: 2px 0;
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 11px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .node-content:hover {
+            background: rgba(0, 212, 255, 0.2);
+            transform: translateX(5px);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        }
+
+        .node-content.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: rgba(255, 68, 68, 0.1);
+            /* Slightly red tint for offline */
+            border-left: 3px solid #ff4444;
+            /* Red border for offline */
+        }
+
+        .node-content.selected {
+            background: rgba(0, 255, 0, 0.3);
+            /* Selected device background */
+            border-left: 3px solid #00ff00;
+            /* Selected device border */
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+            /* Green glow for selected */
+        }
+
+        .control-icon img {
+            width: 20px;
+            height: 20px;
+            filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(190deg) brightness(118%) contrast(119%);
+        }
+
+        .control-icon:hover img {
+            filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(190deg) brightness(118%) contrast(119%) drop-shadow(0 0 4px #00d4ff);
+        }
+
+        .module-section.alert-capture-module {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            /* Allow shrinking below content size */
+        }
+
+        /* 抽屉弹窗样式 */
+        .alert-drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.35);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .alert-drawer {
+            background: #102040;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px #000a, 0 0 0 2px #00d4ff;
+            padding: 36px 40px 28px 40px;
+            min-width: 350px;
+            max-width: 60vw;
+            width: 60vw;
+            min-height: 200px;
+            max-height: 60vh;
+            height: 60vh;
+            color: #00d4ff;
+            position: relative;
+            animation: drawerIn 0.25s cubic-bezier(.4, 2, .6, 1) both;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+
+        .alert-drawer-header {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            width: 100%;
+            margin-bottom: 18px;
+        }
+
+        .alert-drawer-header .alert-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 12px #00d4ff44;
+        }
+
+        .alert-drawer-header .alert-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #00eaff;
+        }
+
+        .alert-drawer-info {
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .alert-drawer-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .alert-drawer-info-label {
+            color: #00bfff;
+            min-width: 70px;
+        }
+
+        .alert-drawer-info-value {
+            color: #fff;
+            flex: 1;
+            text-align: right;
+        }
+
+        .alert-drawer-img {
+            width: 100%;
+            max-width: 420px;
+            margin: 0 auto 18px auto;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 12px #00d4ff44;
+        }
+
+        .alert-drawer-desc {
+            width: 100%;
+            background: rgba(0, 212, 255, 0.08);
+            border-radius: 6px;
+            padding: 12px 16px;
+            color: #b6eaff;
+            font-size: 15px;
+            margin-bottom: 18px;
+        }
+
+        .alert-drawer-actions {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            gap: 16px;
+        }
+
+        .alert-drawer-action-btn {
+            background: linear-gradient(90deg, #00d4ff, #0099cc);
+            color: #002244;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 24px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 8px #00d4ff33;
+            transition: background 0.2s;
+        }
+
+        .alert-drawer-action-btn:hover {
+            background: linear-gradient(90deg, #00eaff, #00bfff);
+        }
+
+        .player-box.selected-screen {
+            border: 2px solid #ff2d2d !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="app">
+        <div class="header">
+            <button class="back-button">后台</button>
+            <h1>智能监控平台</h1>
+        </div>
+        <div class="left-panel">
+            <div class="module-section device-list-module">
+                <div class="section-title">设备列表</div>
+                <div class="tree-view-wrapper">
+                    <div class="tree-view">
+                        <ul>
+                            <template v-for="group in deviceGroups">
+                                <li v-if="group.devices.length > 0">
+                                    <div class="node-content parent" @click="toggleGroup(group.id)">
+                                        <span class="indicator"
+                                            :class="{ 'collapsed': !(groupStates[group.id] && groupStates[group.id].expanded) }">▼</span>
+                                        <span>{{ group.name }}</span>
+                                    </div>
+                                    <ul class="nested"
+                                        :class="{ 'active': groupStates[group.id] && groupStates[group.id].expanded }">
+                                        <li v-for="device in group.devices" :key="device.deviceid">
+                                            <div class="node-content"
+                                                :class="{ 'disabled': !device.online, 'selected': selectedDeviceId === device.deviceid }"
+                                                @click="handleDeviceClick(device)">
+                                                <span class="device-status"
+                                                    :class="getDeviceStatusClass(device)"></span>
+                                                <span>{{ device.devicename }}</span>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="module-section cpu-module-section">
+                <div class="section-title" style="display:flex;
+                                align-items:center;
+                                gap: 50px;
+                                justify-content: flex-start">
+                    内存/CPU
+                </div>
+                <div id="cpu-chart" class="cpu-chart-container"></div>
+            </div>
+            <div class="module-section storage-module-section">
+                <div class="section-title">存储</div>
+                <div class="storage-bar-outer">
+                    <div class="storage-bar-inner" id="storage-bar-inner"></div>
+                    <div class="storage-bar-label" id="storage-bar-label">45%</div>
+                </div>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="video-section" id="app">
+                <div class="section-title video-title-bar">
+                    <span>实时调阅</span>
+                    <span class="time-display" style="margin-left: 20px;">{{ currentTime }}</span>
+                    <div class="screen-switch" style="margin-left:auto;">
+                        <span class="control-icon" @click="onPlayer">
+                            <img src="public/replay.svg" alt="重连" style="width: 20px; height: 20px;">
+                        </span>
+                        <span class="control-icon" @click="onStop">
+                            <img src="public/OFF.svg" alt="重置" style="width: 20px; height: 20px;">
+                        </span>
+                        <div class="divider"></div>
+                        <span v-for="item in [1,4]" :key="item" :class="['screen-btn', {active: screenCount===item}]"
+                            @click="switchScreen(item)">
+                            <svg v-if="item === 1" viewBox="0 0 1024 1024" version="1.1"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M960 920c0 22-18 40-40 40H104c-22 0-40-18-40-40V104c0-22 18-40 40-40h816c22 0 40 18 40 40v816z">
+                                </path>
+                            </svg>
+                            <svg v-else viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M480 96v288c0 53-43 96-96 96H96c-53 0-96-43-96-96V96C0 43 43 0 96 0h288c53 0 96 43 96 96zM1024 96v288c0 53-43 96-96 96H640c-53 0-96-43-96-96V96c0-53 43-96 96-96h288c53 0 96 43 96 96zM480 640v288c0 53-43 96-96 96H96c-53 0-96-43-96-96V640c0-53 43-96 96-96h288c53 0 96 43 96 96zM1024 640v288c0 53-43 96-96 96H640c-53 0-96-43-96-96V640c0-53 43-96 96-96h288c53 0 96 43 96 96z">
+                                </path>
+                            </svg>
+                        </span>
+                        <div class="divider"></div>
+                        <span class="fullscreen-btn" @click="setFullscreen">
+                            <svg viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M368.896 192H224a32 32 0 0 0-32 32v137.888a32 32 0 0 0 64 0V256h112.896a32 32 0 0 0 0-64zM784.864 192H640a32 32 0 1 0 0 64h112.864v105.888a32 32 0 1 0 64 0V224a32 32 0 0 0-32-32zM368.896 777.92H256V672a32 32 0 1 0-64 0v137.92a32 32 0 0 0 32 32h144.896a32 32 0 1 0 0-64zM784.864 640a32 32 0 0 0-32 32v105.92H640a32 32 0 1 0 0 64h144.864a32 32 0 0 0 32-32V672a32 32 0 0 0-32-32z">
+                                </path>
+                                <path
+                                    d="M912 48h-800c-35.296 0-64 28.704-64 64v800c0 35.296 28.704 64 64 64h800c35.296 0 64-28.704 64-64v-800c0-35.296-28.704-64-64-64z m-800 864v-800h800l0.064 800H112z">
+                                </path>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+                <div class="video-frame" :class="'screen-'+screenCount">
+                    <div v-for="n in screenCount" :key="n" :id="'easyplayer-container-'+n" class="player-box"
+                        @click="handleScreenClick(n-1)"></div>
+                </div>
+            </div>
+        </div>
+        <div class="right-panel">
+            <div class="module-section device-status-module">
+                <div class="section-title">设备状态</div>
+                <div style="display: flex;
+                                justify-content: space-around;
+                                align-items: flex-start;
+                                padding: 0">
+                    <div class="gauge-wrapper">
+                        <div id="gauge-startup" class="gauge-container"></div>
+                        <div class="stat-text" style="display:flex;
+                                        gap:10px;
+                                        justify-content:center">
+                            <span>启动: {{ deviceStats.started }}</span> <span>待机: {{ deviceStats.online -
+                                deviceStats.started }}</span>
+                        </div>
+                    </div>
+                    <div class="gauge-wrapper">
+                        <div id="gauge-online" class="gauge-container"></div>
+                        <div class="stat-text" style="display:flex;
+                                        gap:10px;
+                                        justify-content:center">
+                            <span>在线: {{ deviceStats.online }}</span> <span>离线: {{ deviceStats.total -
+                                deviceStats.online }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="module-section alert-capture-module">
+                <div class="section-title">预警抓拍</div>
+                <div class="alert-list-wrapper">
+                    <div class="alert-item" v-for="(item, idx) in alertList" :key="idx" @click="showAlertDrawer(item)">
+                        <div class="alert-icon">
+                            <img :src="item.icon" alt="Alert Icon">
+                        </div>
+                        <div class="alert-info">
+                            <div class="alert-title">{{ item.title }}</div>
+                            <div class="alert-time">{{ item.time }}</div>
+                            <div class="alert-location">{{ item.location }}</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div v-if="drawerVisible" class="alert-drawer-overlay" @click.self="closeAlertDrawer">
+            <div class="alert-drawer">
+                <div class="alert-drawer-header">
+                    <div class="alert-icon">
+                        <img :src="drawerData.icon" alt="Alert Icon" style="width:100%;height:100%;object-fit:cover;">
+                    </div>
+                    <div class="alert-title">{{ drawerData.title }}</div>
+                </div>
+                <div class="alert-drawer-img" v-if="drawerData.img">
+                    <img :src="drawerData.img" alt="抓拍图片" style="width:100%;height:auto;display:block;">
+                </div>
+                <div class="alert-drawer-info">
+                    <div class="alert-drawer-info-row">
+                        <span class="alert-drawer-info-label">类型</span>
+                        <span class="alert-drawer-info-value">{{ drawerData.type || '未知' }}</span>
+                    </div>
+                    <div class="alert-drawer-info-row">
+                        <span class="alert-drawer-info-label">等级</span>
+                        <span class="alert-drawer-info-value">{{ drawerData.level || '一般' }}</span>
+                    </div>
+                    <div class="alert-drawer-info-row">
+                        <span class="alert-drawer-info-label">时间</span>
+                        <span class="alert-drawer-info-value">{{ drawerData.time }}</span>
+                    </div>
+                    <div class="alert-drawer-info-row">
+                        <span class="alert-drawer-info-label">布点</span>
+                        <span class="alert-drawer-info-value">{{ drawerData.location }}</span>
+                    </div>
+                    <div class="alert-drawer-info-row">
+                        <span class="alert-drawer-info-label">处理状态</span>
+                        <span class="alert-drawer-info-value">{{ drawerData.status || '未处理' }}</span>
+                    </div>
+                    <div class="alert-drawer-info-row">
+                        <span class="alert-drawer-info-label">处理人</span>
+                        <span class="alert-drawer-info-value">{{ drawerData.handler || '-' }}</span>
+                    </div>
+                    <div class="alert-drawer-info-row">
+                        <span class="alert-drawer-info-label">处理时间</span>
+                        <span class="alert-drawer-info-value">{{ drawerData.handleTime || '-' }}</span>
+                    </div>
+                </div>
+                <div class="alert-drawer-desc" v-if="drawerData.desc">{{ drawerData.desc }}</div>
+                <div class="alert-drawer-info-row" v-if="drawerData.remark">
+                    <span class="alert-drawer-info-label">备注</span>
+                    <span class="alert-drawer-info-value">{{ drawerData.remark }}</span>
+                </div>
+                <div class="alert-drawer-actions">
+                    <button class="alert-drawer-action-btn" @click="onAlertAction(drawerData)">处理</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // ECharts for Startup Gauge (Moved outside Vue instance)
+        const createGaugeOption = (value, color) => ({
+            series: [
+                {
+                    type: 'gauge',
+                    startAngle: 90,
+                    endAngle: -270,
+                    min: 0,
+                    max: 100,
+                    axisLine: {
+                        lineStyle: {
+                            width: 7,
+                            color: [
+                                [value / 100, color],
+                                [1, 'rgba(0, 212, 255, 0.1)']
+                            ]
+                        }
+                    },
+                    pointer: { show: false },
+                    progress: { show: false },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
+                    axisLabel: { show: false },
+                    detail: {
+                        valueAnimation: true,
+                        fontSize: 12,
+                        offsetCenter: [0, '0%'],
+                        formatter: '{value}%',
+                        color: color
+                    },
+                    data: [{ value: parseFloat(value) }]
+                }
+            ]
+        });
+
+        // Add mouse move particle effect (existing code)
+        document.addEventListener('mousemove', function (e) {
+            createParticle(e.clientX, e.clientY);
+        });
+
+        function createParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.style.position = 'fixed';
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            particle.style.width = '2px';
+            particle.style.height = '2px';
+            particle.style.background = '#00d4ff';
+            particle.style.borderRadius = '50%';
+            particle.style.pointerEvents = 'none';
+            particle.style.zIndex = '1000';
+            particle.style.opacity = '0.8';
+            document.body.appendChild(particle);
+
+            const animation = particle.animate([
+                { transform: 'translate(0, 0) scale(1)', opacity: 0.8 },
+                { transform: `translate(${Math.random() * 40 - 20}px, ${Math.random() * 40 - 20}px) scale(0)`, opacity: 0 }
+            ], {
+                duration: 1000,
+                easing: 'ease-out'
+            });
+
+            animation.onfinish = () => {
+                document.body.removeChild(particle);
+            };
+        }
+
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    videoUrl: "ws://192.168.1.74:9002/live/test.live.mp4",
+                    isPlay: false,
+                    config: { hasAudio: true, MSE: false, WCS: false, bufferTime: 0.2, stretch: false },
+                    screenCount: 1,
+                    playerList: [],
+                    currentTime: '',
+                    selectedScreenId: 0,
+                    selectedDeviceId: null, // 新增：用于存储当前选中设备的ID
+                    deviceList: [], // 设备列表数据
+                    deviceStats: { // 设备状态统计
+                        total: 0,
+                        started: 0,
+                        online: 0
+                    },
+                    groupStates: {}, // 用于存储每个分组的展开状态
+                    cpuChartInstance: null, // CPU图表实例
+                    startupGaugeChartInstance: null, // 启动仪表盘实例
+                    onlineGaugeChartInstance: null, // 在线仪表盘实例
+                    cpuData: [],
+                    memoryData: [],
+                    timeData: [],
+                    alertList: [
+                        { icon: 'public/bus.jpg', title: '烟火告警', type: '火灾', level: '紧急', img: 'public/bus.jpg', time: '抓拍时间: 2025-04-07 14:44:19', location: '布点名称: 告警设备', status: '未处理', handler: '', handleTime: '', desc: '检测到烟火异常，请及时处理。', remark: '请第一时间核查现场。' },
+                        { icon: 'public/bus.jpg', title: '安全帽告警', type: '安全', level: '一般', img: 'public/bus.jpg', time: '抓拍时间: 2025-04-07 14:39:30', location: '布点名称: 告警设备', status: '未处理', handler: '', handleTime: '', desc: '未佩戴安全帽，存在安全隐患。', remark: '' },
+                        { icon: 'public/bus.jpg', title: '烟火告警', type: '火灾', level: '紧急', img: 'public/bus.jpg', time: '抓拍时间: 2025-04-07 14:34:19', location: '布点名称: 告警设备', status: '未处理', handler: '', handleTime: '', desc: '检测到烟火异常，请及时处理。', remark: '' },
+                        { icon: 'public/bus.jpg', title: '安全帽告警', type: '安全', level: '一般', img: 'public/bus.jpg', time: '抓拍时间: 2025-04-07 14:29:30', location: '布点名称: 告警设备', status: '未处理', handler: '', handleTime: '', desc: '未佩戴安全帽，存在安全隐患。', remark: '' },
+                        { icon: 'public/bus.jpg', title: '烟火告警', type: '火灾', level: '紧急', img: 'public/bus.jpg', time: '抓拍时间: 2025-04-07 14:24:17', location: '布点名称: 告警设备', status: '未处理', handler: '', handleTime: '', desc: '检测到烟火异常，请及时处理。', remark: '' },
+                        { icon: 'public/bus.jpg', title: '入侵告警', type: '入侵', level: '重要', img: 'public/bus.jpg', time: '抓拍时间: 2025-04-07 14:20:00', location: '布点名称: 告警设备', status: '未处理', handler: '', handleTime: '', desc: '检测到异常入侵，请注意安全。', remark: '夜间巡查加强。' },
+                        { icon: 'public/bus.jpg', title: '入侵告警', type: '入侵', level: '重要', img: 'public/bus.jpg', time: '抓拍时间: 2025-04-07 14:15:00', location: '布点名称: 告警设备', status: '未处理', handler: '', handleTime: '', desc: '检测到异常入侵，请注意安全。', remark: '' },
+                    ],
+                    drawerVisible: false,
+                    drawerData: {},
+                };
+            },
+            created() {
+                this.initializeGroupStates();
+                // 移除 Vue 外部的 updateTime 和 setInterval
+                // 只保留 Vue 内部的 updateTime 逻辑
+            },
+            computed: {
+                deviceGroups() {
+                    const groups = {};
+                    const UNGROUPED_ID = 'ungrouped';
+
+                    this.deviceList.forEach(device => {
+                        const groupId = device.groupid === 0 ? UNGROUPED_ID : device.groupid;
+                        const groupName = device.groupid === 0 ? '未分组' : device.groupname;
+
+                        if (!groups[groupId]) {
+                            const expandedState = this.groupStates[groupId] ? this.groupStates[groupId].expanded : true;
+                            groups[groupId] = {
+                                id: groupId,
+                                name: groupName,
+                                devices: [],
+                                expanded: expandedState
+                            };
+                        }
+                        groups[groupId].devices.push(device);
+                    });
+
+                    const sortedGroups = Object.values(groups).sort((a, b) => {
+                        if (a.id === UNGROUPED_ID) return 1;
+                        if (b.id === UNGROUPED_ID) return -1;
+                        return a.id - b.id;
+                    });
+                    return sortedGroups;
+                }
+            },
+            methods: {
+                initializeGroupStates() {
+                    const initialStates = {};
+                    const uniqueGroupIds = new Set();
+                    // 为了确保在 deviceList 尚未加载时也能初始化，
+                    // 这里可以先假设一些分组或在 fetchDeviceList 后再完整初始化
+                    // 但更好的做法是在 fetchDeviceList 获取数据后，根据实际分组初始化
+                    // 这里仅作预设，实际会在 fetchDeviceList 中再次初始化
+                    this.deviceList.forEach(device => {
+                        const groupId = device.groupid === 0 ? 'ungrouped' : device.groupid;
+                        uniqueGroupIds.add(groupId);
+                    });
+
+                    uniqueGroupIds.forEach(id => {
+                        this.$set(initialStates, id, { expanded: true });
+                    });
+                    this.groupStates = initialStates;
+                },
+                toggleGroup(groupId) {
+                    // 确保 groupStates[groupId] 存在
+                    if (!this.groupStates[groupId]) {
+                        this.$set(this.groupStates, groupId, { expanded: true });
+                    }
+                    this.$set(this.groupStates[groupId], 'expanded', !this.groupStates[groupId].expanded);
+                    const groupName = this.deviceGroups.find(g => g.id === groupId)?.name || '未知分组';
+                    console.log(`分组 "${groupName}" ${this.groupStates[groupId].expanded ? '展开' : '折叠'}`);
+                },
+                async fetchDeviceList() {
+                    try {
+                        const response = await fetch('http://192.168.1.186:5000/get_data?token=123456');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        console.log('获取到的设备数据:', data);
+
+                        this.deviceList = data;
+                        this.updateDeviceStats();
+
+                        // 在获取到设备列表后，重新初始化或更新 groupStates
+                        const newGroupStates = {};
+                        const uniqueGroupIds = new Set();
+                        this.deviceList.forEach(device => {
+                            const groupId = device.groupid === 0 ? 'ungrouped' : device.groupid;
+                            uniqueGroupIds.add(groupId);
+                        });
+
+                        uniqueGroupIds.forEach(id => {
+                            // 保持之前已有的展开状态，如果没有则默认为展开
+                            const currentExpanded = this.groupStates[id] ? this.groupStates[id].expanded : true;
+                            this.$set(newGroupStates, id, { expanded: currentExpanded });
+                        });
+                        this.groupStates = newGroupStates; // 更新 groupStates
+                    } catch (error) {
+                        console.error('获取设备列表失败:', error);
+                    }
+                },
+                updateDeviceStats() {
+                    this.deviceStats.total = this.deviceList.length;
+                    this.deviceStats.started = this.deviceList.filter(device => device.started).length;
+                    this.deviceStats.online = this.deviceList.filter(device => device.online).length;
+
+                    const startupPercentage = this.deviceStats.online === 0 ? 0 :
+                        (this.deviceStats.started / this.deviceStats.online * 100);
+                    const onlinePercentage = this.deviceStats.total === 0 ? 0 :
+                        (this.deviceStats.online / this.deviceStats.total * 100);
+
+                    if (this.startupGaugeChartInstance && this.onlineGaugeChartInstance) {
+                        this.startupGaugeChartInstance.setOption(createGaugeOption(startupPercentage.toFixed(1), '#00d4ff'));
+                        this.onlineGaugeChartInstance.setOption(createGaugeOption(onlinePercentage.toFixed(1), '#00ff00'));
+                    }
+                },
+                getDeviceStatusClass(device) {
+                    if (!device.online) return 'status-offline';
+                    if (!device.started) return 'status-standby';
+                    return 'status-started';
+                },
+                handleDeviceClick(device) {
+                    // 设置选中设备的ID
+                    this.selectedDeviceId = device.deviceid;
+
+                    if (device.online && device.wsurl) {
+                        this.videoUrl = device.wsurl;
+                        this.onPlayer();
+                    } else {
+                        console.warn(`设备 "${device.devicename}" 离线或没有视频流，无法播放。`);
+                        // 如果设备离线或没有视频流，可以停止当前播放器
+                        this.onStop();
+                    }
+                },
+                handleScreenClick(screenId) {
+                    this.selectedScreenId = screenId;
+                    // alert('当前选中屏ID: ' + screenId); // 调试用，已移除
+                    console.log('当前选中屏ID:', screenId);
+                    // 更新选中屏幕的样式
+                    document.querySelectorAll('.player-box').forEach((box, index) => {
+                        if (index === screenId) {
+                            box.style.border = '2px solid #ff0000';
+                        } else {
+                            box.style.border = '1px solid #00d4ff';
+                        }
+                    });
+                },
+                switchScreen(count) {
+                    if (this.screenCount === count) return;
+
+                    this.playerList.forEach(p => {
+                        if (p && p.destroy) {
+                            try {
+                                p.destroy();
+                            } catch (e) {
+                                console.warn('销毁播放器时出错:', e);
+                            }
+                        }
+                    });
+                    this.playerList = [];
+                    this.screenCount = count;
+                    this.selectedScreenId = 0;
+
+                    this.$nextTick(() => {
+                        setTimeout(() => { // Add delay for DOM update
+                            this.createPlayers();
+                            if (this.isPlay && this.videoUrl) {
+                                setTimeout(() => { // Add delay before playing
+                                    this.onPlayer();
+                                }, 200);
+                            }
+                        }, 100);
+                    });
+                },
+                createPlayers() {
+                    this.playerList = []; // Clear existing players before creating new ones
+                    this.$nextTick(() => {
+                        for (let i = 1; i <= this.screenCount; i++) {
+                            const container = document.getElementById('easyplayer-container-' + i);
+                            if (container) {
+                                // Removed dimension check for debugging, as it's not in gmini-1.0.html
+                                try {
+                                    container.innerHTML = '';
+                                    const player = new EasyPlayerPro(container, {
+                                        ...this.config,
+                                        watermark: {
+                                            text: {
+                                                content: 'easyplayer-pro'
+                                            },
+                                            right: 10,
+                                            top: 10
+                                        }
+                                    });
+                                    this.playerList.push(player);
+                                } catch (error) {
+                                    console.error(`创建播放器${i}失败:`, error);
+                                    this.playerList.push(null);
+                                }
+                            } else {
+                                this.playerList.push(null);
+                            }
+                        }
+                        this.handleScreenClick(this.selectedScreenId); // Reapply selected screen style
+                    });
+                },
+                onPlayer() {
+                    if (!this.videoUrl) {
+                        console.warn('没有可播放的视频URL。');
+                        return;
+                    }
+
+                    this.$nextTick(() => {
+                        const selectedPlayer = this.playerList[this.selectedScreenId];
+                        const container = document.getElementById('easyplayer-container-' + (this.selectedScreenId + 1));
+
+                        // 如果存在旧的播放器，先销毁它
+                        if (selectedPlayer && selectedPlayer.destroy) {
+                            try {
+                                selectedPlayer.destroy();
+                            } catch (e) {
+                                console.warn('销毁旧播放器时出错:', e);
+                            }
+                        }
+
+                        if (container) {
+                            setTimeout(() => { // Add delay for container to be ready
+                                // Removed dimension check for debugging, as it's not in gmini-1.0.html
+                                try {
+                                    container.innerHTML = ''; // 清空容器
+                                    const newPlayer = new EasyPlayerPro(container, {
+                                        ...this.config,
+                                        watermark: {
+                                            text: {
+                                                content: 'easyplayer-pro'
+                                            },
+                                            right: 10,
+                                            top: 10
+                                        }
+                                    });
+                                    this.$set(this.playerList, this.selectedScreenId, newPlayer); // 更新playerList中的实例
+                                    newPlayer.play(this.videoUrl).then(() => {
+                                        this.isPlay = true;
+                                    }).catch(e => {
+                                        console.error('播放失败:', e);
+                                        this.isPlay = false;
+                                    });
+                                } catch (error) {
+                                    console.error('创建播放器实例失败:', error);
+                                    this.isPlay = false;
+                                }
+                            }, 200); // Changed delay to 200ms, as per gmini-1.0.html
+                        }
+                    });
+                },
+                onPause() {
+                    const selectedPlayer = this.playerList[this.selectedScreenId];
+                    if (selectedPlayer && selectedPlayer.pause) {
+                        try {
+                            selectedPlayer.pause();
+                        } catch (error) {
+                            console.error('暂停操作失败:', error);
+                        }
+                    }
+                },
+                setFullscreen() {
+                    const videoSection = document.querySelector('.video-section');
+                    if (videoSection) {
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen();
+                        } else {
+                            videoSection.requestFullscreen();
+                        }
+                    }
+                },
+                onStop() {
+                    const selectedPlayer = this.playerList[this.selectedScreenId];
+                    if (selectedPlayer && selectedPlayer.destroy) {
+                        try {
+                            selectedPlayer.destroy();
+                            this.isPlay = false;
+                            this.$set(this.playerList, this.selectedScreenId, null); // 将实例设为null
+
+                            // 重新初始化一个空的播放器容器
+                            setTimeout(() => { // Removed this.$nextTick and kept only setTimeout as in gmini-1.0.html
+                                const container = document.getElementById('easyplayer-container-' + (this.selectedScreenId + 1));
+                                if (container) {
+                                    container.innerHTML = ''; // 清空容器
+                                    try {
+                                        const newPlayer = new EasyPlayerPro(container, {
+                                            ...this.config,
+                                            watermark: {
+                                                text: {
+                                                    content: 'easyplayer-pro'
+                                                },
+                                                right: 10,
+                                                top: 10
+                                            }
+                                        });
+                                        this.playerList[this.selectedScreenId] = newPlayer;
+                                    } catch (error) {
+                                        console.error('创建停止后的播放器实例失败:', error);
+                                    }
+                                }
+                            }, 100); // Changed delay to 100ms, as per gmini-1.0.html
+                        } catch (error) {
+                            console.error('销毁播放器失败:', error);
+                        }
+                    }
+                },
+                updateTime() {
+                    const now = new Date();
+                    const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+                    this.currentTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${weekdays[now.getDay()]} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+                },
+                generateCpuMemoryData(shouldUpdateChart = true) {
+                    const now = new Date();
+                    const timeStr = String(now.getHours()).padStart(2, '0') + ':' +
+                        String(now.getMinutes()).padStart(2, '0') + ':' +
+                        String(now.getSeconds()).padStart(2, '0');
+
+                    this.timeData.push(timeStr);
+                    this.cpuData.push(parseFloat((Math.random() * 30 + 30).toFixed(1))); // CPU usage 30-60%
+                    this.memoryData.push(parseFloat((Math.random() * 40 + 40).toFixed(1))); // Memory usage 40-80%
+
+                    // Keep only last 10 data points
+                    if (this.timeData.length > 10) {
+                        this.timeData.shift();
+                        this.cpuData.shift();
+                        this.memoryData.shift();
+                    }
+
+                    if (shouldUpdateChart && this.cpuChartInstance) {
+                        const option = {
+                            xAxis: {
+                                data: this.timeData
+                            },
+                            series: [
+                                {
+                                    name: '内存',
+                                    data: this.memoryData
+                                },
+                                {
+                                    name: 'CPU',
+                                    data: this.cpuData
+                                }
+                            ]
+                        };
+                        this.cpuChartInstance.setOption(option);
+                    }
+                },
+                initCpuChart() {
+                    const cpuChartDom = document.getElementById('cpu-chart');
+                    if (cpuChartDom) {
+                        this.cpuChartInstance = echarts.init(cpuChartDom, null, {
+                            renderer: 'canvas',
+                            useDirtyRect: false
+                        });
+
+                        // Populate initial data before setting the option
+                        for (let i = 0; i < 10; i++) {
+                            this.generateCpuMemoryData(false); // Pass false to prevent setOption on each iteration
+                        }
+
+                        // Define the full option structure
+                        const cpuOption = {
+                            color: ['#00ff00', '#ffff00'],
+                            tooltip: {
+                                trigger: 'axis',
+                                confine: true,
+                                textStyle: {
+                                    color: '#fff',
+                                    fontSize: 10,
+                                },
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                formatter: function (params) {
+                                    let tooltipContent = params[0].name + '<br />';
+                                    params.forEach(function (item) {
+                                        const colorSpan = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${item.color};"></span>`;
+                                        tooltipContent += colorSpan + item.seriesName + ': ' + item.value + '%<br />';
+                                    });
+                                    return tooltipContent;
+                                }
+                            },
+                            legend: {
+                                data: ['内存', 'CPU'],
+                                textStyle: {
+                                    color: '#fff',
+                                    fontSize: 10,
+                                }
+                            },
+                            toolbox: {
+                                feature: {
+                                    saveAsImage: {
+                                        title: ''
+                                    },
+                                }
+                            },
+                            grid: {
+                                top: '15%',
+                                left: '3%',
+                                right: '10%',
+                                bottom: '5%',
+                                containLabel: true
+                            },
+                            xAxis: {
+                                type: 'category',
+                                boundaryGap: false,
+                                data: this.timeData, // Now populated
+                                axisLabel: {
+                                    color: '#00d4ff',
+                                    fontSize: 10,
+                                    formatter: function (value) {
+                                        return value.substring(3); // Display only MM:SS
+                                    }
+                                },
+                                axisLine: {
+                                    lineStyle: {
+                                        color: 'rgba(0, 212, 255, 0.5)'
+                                    }
+                                },
+                                axisTick: {
+                                    show: false
+                                }
+                            },
+                            yAxis: {
+                                type: 'value',
+                                axisLabel: {
+                                    formatter: '{value} %',
+                                    color: '#00d4ff',
+                                    fontSize: 10
+                                },
+                                splitLine: {
+                                    lineStyle: {
+                                        color: 'rgba(0, 212, 255, 0.2)'
+                                    }
+                                },
+                                axisLine: {
+                                    lineStyle: {
+                                        color: 'rgba(0, 212, 255, 0.5)'
+                                    }
+                                },
+                                min: 0,
+                                max: 100
+                            },
+                            series: [
+                                {
+                                    name: '内存',
+                                    type: 'line',
+                                    smooth: true,
+                                    symbol: 'none',
+                                    lineStyle: { color: '#00ff00' },
+                                    areaStyle: {
+                                        opacity: 0.5,
+                                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                            { offset: 0, color: 'rgba(0, 255, 0, 0.4)' },
+                                            { offset: 1, color: 'rgba(0, 255, 0, 0)' }
+                                        ])
+                                    },
+                                    data: this.memoryData // Now populated
+                                },
+                                {
+                                    name: 'CPU',
+                                    type: 'line',
+                                    smooth: true,
+                                    symbol: 'none',
+                                    lineStyle: { color: '#ffff00' },
+                                    areaStyle: {
+                                        opacity: 0.5,
+                                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                            { offset: 0, color: 'rgba(255, 255, 0, 0.4)' },
+                                            { offset: 1, color: 'rgba(255, 255, 0, 0)' }
+                                        ])
+                                    },
+                                    data: this.cpuData // Now populated
+                                }
+                            ]
+                        };
+
+                        // Set the initial full option once
+                        this.cpuChartInstance.setOption(cpuOption);
+
+                        // Set up periodic updates for data
+                        setInterval(() => {
+                            this.generateCpuMemoryData(true); // Pass true to allow setOption
+                        }, 3000);
+
+                        // Listener for window resize
+                        window.addEventListener('resize', () => {
+                            if (this.cpuChartInstance) {
+                                this.cpuChartInstance.resize();
+                            }
+                        });
+                    }
+                },
+                initGaugeCharts() {
+                    const startupGaugeDom = document.getElementById('gauge-startup');
+                    const onlineGaugeDom = document.getElementById('gauge-online');
+
+                    if (startupGaugeDom && onlineGaugeDom) {
+                        this.startupGaugeChartInstance = echarts.init(startupGaugeDom);
+                        this.onlineGaugeChartInstance = echarts.init(onlineGaugeDom);
+
+                        this.startupGaugeChartInstance.setOption(createGaugeOption('0.0', '#00d4ff'));
+                        this.onlineGaugeChartInstance.setOption(createGaugeOption('0.0', '#00ff00'));
+
+                        window.addEventListener('resize', () => {
+                            if (this.startupGaugeChartInstance) {
+                                this.startupGaugeChartInstance.resize();
+                            }
+                            if (this.onlineGaugeChartInstance) {
+                                this.onlineGaugeChartInstance.resize();
+                            }
+                        });
+                    }
+                },
+                updateStorageBar(percent) {
+                    const bar = document.getElementById('storage-bar-inner');
+                    const label = document.getElementById('storage-bar-label');
+                    if (bar && label) {
+                        bar.style.width = percent + '%';
+                        label.textContent = percent + '%';
+                    }
+                },
+                showAlertDrawer(item) {
+                    this.drawerData = item;
+                    this.drawerVisible = true;
+                },
+                closeAlertDrawer() {
+                    this.drawerVisible = false;
+                },
+                onAlertAction(item) {
+                    alert('处理告警: ' + (item.title || ''));
+                },
+            },
+            mounted() {
+                // 在DOM完全加载并Vue实例挂载后，初始化所有图表和数据
+                this.$nextTick(() => {
+                    setTimeout(() => { // Add delay for DOM to settle
+                        this.initCpuChart();
+                        this.initGaugeCharts();
+                        this.createPlayers();
+                        this.updateTime();
+                        setInterval(this.updateTime, 1000);
+
+                        this.fetchDeviceList();
+                        setInterval(this.fetchDeviceList, 30000); // 每30秒更新一次设备列表
+
+                        // 初始化存储条
+                        this.updateStorageBar(45);
+                        setInterval(() => {
+                            const percent = Math.floor(Math.random() * 31) + 40; // 40-70之间的随机数
+                            this.updateStorageBar(percent);
+                        }, 5000); // 每5秒更新一次
+                    }, 100);
+                });
+            },
+        });
+
+        // 后台按钮点击事件
+        document.querySelector('.back-button').addEventListener('click', function () {
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+                // window.location.href = 'http://192.168.1.74:9001/control/index';
+                console.log('返回后台'); // 实际跳转时取消注释
+            }, 150);
+        });
+    </script>
+</body>
+
+</html>

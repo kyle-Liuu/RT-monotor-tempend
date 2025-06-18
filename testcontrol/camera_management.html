@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摄像头管理</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>摄像头管理</h1>
+        <div class="toolbar">
+            <button onclick="window.location.href='index.html'">添加摄像头</button>
+            <button onclick="refreshCameraList()">刷新</button>
+        </div>
+
+        <table id="cameraTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>名称</th>
+                    <th>接入协议</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="addControlModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeControlModal()">&times;</span>
+            <h2>添加布控</h2>
+            <form id="addControlForm">
+                <div class="form-group">
+                    <label for="controlName">布控名称*</label>
+                    <input type="text" id="controlName" required placeholder="请输入布控名称">
+                </div>
+                <div class="form-group">
+                    <label>算法标签*</label>
+                    <div id="algoTags" class="checkbox-group">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="controlRemark">备注</label>
+                    <textarea id="controlRemark" placeholder="请输入布控备注"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeControlModal()">取消</button>
+                    <button type="submit">确认</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        const TOKEN = '123456';
+        let currentDeviceIdForControl = null; // To store which camera we're adding a control for
+
+        const PROTOCOL_MAP = {
+            1: "RTSP",
+            2: "RTMP",
+            3: "FVL",
+            4: "HLS",
+            21: "GB28181"
+        };
+        const STATUS_MAP_CAMERA = {
+            "offline": "离线",
+            "online": "在线"
+        };
+        let YOLO_TASKS = {}; // To store the fetched YOLO task mapping
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            await fetchYOLOTasks();
+            refreshCameraList();
+        });
+
+        async function fetchYOLOTasks() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/get_yolo_config?token=${TOKEN}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch YOLO config');
+                }
+                const config = await response.json();
+                YOLO_TASKS = config.yolo_tasks;
+                populateAlgoTags();
+            } catch (error) {
+                console.error('Error fetching YOLO tasks:', error);
+                alert('无法加载YOLO算法标签。');
+            }
+        }
+
+        function populateAlgoTags(selectedTags = []) {
+            const algoTagsDiv = document.getElementById('algoTags');
+            algoTagsDiv.innerHTML = ''; // Clear existing
+            for (const tagId in YOLO_TASKS) {
+                const tagName = YOLO_TASKS[tagId];
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `tag_${tagId}`;
+                checkbox.value = tagId;
+                checkbox.name = 'algo_tag';
+                if (selectedTags.includes(parseInt(tagId))) {
+                    checkbox.checked = true;
+                }
+
+                const label = document.createElement('label');
+                label.htmlFor = `tag_${tagId}`;
+                label.textContent = tagName;
+
+                const div = document.createElement('div');
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                algoTagsDiv.appendChild(div);
+            }
+            // Default select '检测' if no tags are selected and it exists
+            if (selectedTags.length === 0) {
+                const detectCheckbox = document.getElementById('tag_1'); // Assuming '检测' is tag 1
+                if (detectCheckbox) {
+                    detectCheckbox.checked = true;
+                }
+            }
+        }
+
+
+        async function refreshCameraList() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/get_cameras?token=${TOKEN}`);
+                const cameras = await response.json();
+
+                const tableBody = document.getElementById('cameraTable').getElementsByTagName('tbody')[0];
+                tableBody.innerHTML = ''; // Clear existing rows
+
+                cameras.forEach(camera => {
+                    const row = tableBody.insertRow();
+                    row.insertCell(0).textContent = camera.device_id;
+                    row.insertCell(1).textContent = camera.device_name;
+                    row.insertCell(2).textContent = PROTOCOL_MAP[camera.pull_stream_type] || camera.pull_stream_type;
+                    row.insertCell(3).textContent = STATUS_MAP_CAMERA[camera.status] || camera.status;
+
+                    const operationsCell = row.insertCell(4);
+
+                    const startStopButton = document.createElement('button');
+                    startStopButton.className = camera.status === 'online' ? 'btn-stop' : 'btn-start';
+                    startStopButton.textContent = camera.status === 'online' ? '停止转发' : '转发';
+                    startStopButton.onclick = () => camera.status === 'online' ? stopStream(camera.device_id) : startStream(camera.device_id);
+                    operationsCell.appendChild(startStopButton);
+
+                    const editButton = document.createElement('button');
+                    editButton.textContent = '编辑';
+                    editButton.onclick = () => editCamera(camera.device_id);
+                    operationsCell.appendChild(editButton);
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = '删除';
+                    deleteButton.onclick = () => deleteCamera(camera.device_id);
+                    operationsCell.appendChild(deleteButton);
+
+                    const addControlButton = document.createElement('button');
+                    addControlButton.textContent = '添加布控';
+                    addControlButton.onclick = () => openControlModal(camera.device_id);
+                    operationsCell.appendChild(addControlButton);
+                });
+            } catch (error) {
+                console.error('Error fetching cameras:', error);
+                alert('加载摄像头列表失败。');
+            }
+        }
+
+        async function startStream(deviceId) {
+            if (!confirm(`确定要转发摄像头 ${deviceId} 的视频流吗？这将启动YOLO服务。`)) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/start_stream/${deviceId}?token=${TOKEN}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(`流转发成功！ 输出流地址: ${result.output_rtsp_url}`);
+                    refreshCameraList();
+                } else {
+                    alert('流转发失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error starting stream:', error);
+                alert('启动流时发生网络错误。');
+            }
+        }
+
+        async function stopStream(deviceId) {
+            if (!confirm(`确定要停止摄像头 ${deviceId} 的视频流吗？这将停止YOLO服务。`)) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/stop_stream/${deviceId}?token=${TOKEN}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('流停止成功！');
+                    refreshCameraList();
+                } else {
+                    alert('流停止失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error stopping stream:', error);
+                alert('停止流时发生网络错误。');
+            }
+        }
+
+        function editCamera(deviceId) {
+            window.location.href = `index.html?editDeviceId=${deviceId}`;
+        }
+
+        async function deleteCamera(deviceId) {
+            if (!confirm(`确定要删除摄像头 ${deviceId} 及其所有相关布控吗？`)) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/delete_camera/${deviceId}?token=${TOKEN}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('摄像头删除成功！');
+                    refreshCameraList();
+                } else {
+                    alert('删除摄像头失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error deleting camera:', error);
+                alert('删除摄像头时发生网络错误。');
+            }
+        }
+
+        function openControlModal(deviceId, controlData = null) {
+            currentDeviceIdForControl = deviceId;
+            const form = document.getElementById('addControlForm');
+            form.reset(); // Clear previous form data
+            populateAlgoTags([]); // Reset checkboxes to default (detect selected)
+
+            document.getElementById('addControlModal').style.display = 'block';
+
+            if (controlData) {
+                // Populate for editing
+                document.querySelector('#addControlModal h2').textContent = '编辑布控';
+                document.getElementById('controlName').value = controlData.control_name;
+                document.getElementById('controlRemark').value = controlData.control_remark;
+                populateAlgoTags(controlData.control_tag);
+
+                form.onsubmit = (event) => submitEditControl(event, controlData.control_id);
+            } else {
+                // Populate for adding
+                document.querySelector('#addControlModal h2').textContent = '添加布控';
+                form.onsubmit = submitAddControl;
+            }
+        }
+
+        function closeControlModal() {
+            document.getElementById('addControlModal').style.display = 'none';
+            currentDeviceIdForControl = null;
+        }
+
+        async function submitAddControl(event) {
+            event.preventDefault();
+            const controlName = document.getElementById('controlName').value;
+            const controlRemark = document.getElementById('controlRemark').value;
+            const selectedTags = Array.from(document.querySelectorAll('input[name="algo_tag"]:checked'))
+                .map(cb => parseInt(cb.value));
+
+            if (selectedTags.length === 0) {
+                alert('请至少选择一个算法标签。');
+                return;
+            }
+
+            const controlData = {
+                device_id: currentDeviceIdForControl,
+                control_name: controlName,
+                control_tag: selectedTags.join(','), // Send as comma-separated string
+                control_remark: controlRemark
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/add_control?token=${TOKEN}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(controlData),
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('布控添加成功！');
+                    closeControlModal();
+                    // Optionally refresh control list if on control management page, or just confirm success
+                    window.location.href = 'control_management.html'; // Redirect to control management
+                } else {
+                    alert('添加布控失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error adding control:', error);
+                alert('添加布控时发生网络错误。');
+            }
+        }
+
+        async function submitEditControl(event, controlId) {
+            event.preventDefault();
+            const controlName = document.getElementById('controlName').value;
+            const controlRemark = document.getElementById('controlRemark').value;
+            const selectedTags = Array.from(document.querySelectorAll('input[name="algo_tag"]:checked'))
+                .map(cb => parseInt(cb.value));
+
+            if (selectedTags.length === 0) {
+                alert('请至少选择一个算法标签。');
+                return;
+            }
+
+            const updatedControlData = {
+                control_name: controlName,
+                control_tag: selectedTags.join(','),
+                control_remark: controlRemark
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/edit_control/${controlId}?token=${TOKEN}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updatedControlData),
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('布控更新成功！');
+                    closeControlModal();
+                    window.location.href = 'control_management.html'; // Redirect to control management
+                } else {
+                    alert('更新布控失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error updating control:', error);
+                alert('更新布控时发生网络错误。');
+            }
+        }
+    </script>
+</body>
+
+</html>

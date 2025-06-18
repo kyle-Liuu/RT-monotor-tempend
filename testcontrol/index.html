@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加摄像头</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>添加摄像头</h1>
+        <form id="addCameraForm">
+            <div class="form-group">
+                <label for="deviceName">名称*</label>
+                <input type="text" id="deviceName" required placeholder="请输入名称">
+            </div>
+            <div class="form-group">
+                <label for="pullStreamType">接入协议*</label>
+                <select id="pullStreamType" required>
+                    <option value="1">RTSP</option>
+                    <option value="2">RTMP</option>
+                    <option value="3">FVL</option>
+                    <option value="4">HLS</option>
+                    <option value="21">GB28181</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="pullStreamUrl">直播流地址*</label>
+                <input type="text" id="pullStreamUrl" required placeholder="请输入直播流地址">
+            </div>
+            <div class="form-group">
+                <label for="isAudio">音频输出*</label>
+                <select id="isAudio" required>
+                    <option value="0">静音</option>
+                    <option value="1">原始音频</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="deviceRemark">备注</label>
+                <textarea id="deviceRemark" placeholder="请输入摄像头备注"></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="button" onclick="window.location.href='camera_management.html'">返回</button>
+                <button type="submit">提交</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api'; // Ensure this matches your Flask app port
+        const TOKEN = '123456'; // Match the token in your Flask app
+
+        document.getElementById('addCameraForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const deviceName = document.getElementById('deviceName').value;
+            const pullStreamType = parseInt(document.getElementById('pullStreamType').value);
+            const pullStreamUrl = document.getElementById('pullStreamUrl').value;
+            const deviceRemark = document.getElementById('deviceRemark').value;
+            const isAudio = parseInt(document.getElementById('isAudio').value);
+
+            const cameraData = {
+                device_name: deviceName,
+                pull_stream_type: pullStreamType,
+                pull_stream_url: pullStreamUrl,
+                device_remark: deviceRemark,
+                is_audio: isAudio
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/add_camera?token=${TOKEN}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(cameraData),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('摄像头添加成功: ' + result.camera.device_id);
+                    // Optionally redirect or clear form
+                    window.location.href = 'camera_management.html';
+                } else {
+                    alert('添加摄像头失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error adding camera:', error);
+                alert('添加摄像头时发生网络错误');
+            }
+        });
+
+        // Function to load camera data for editing
+        async function loadCameraForEdit(deviceId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/get_cameras?token=${TOKEN}`);
+                const cameras = await response.json();
+                const camera = cameras.find(c => c.device_id === deviceId);
+
+                if (camera) {
+                    document.getElementById('deviceName').value = camera.device_name;
+                    document.getElementById('pullStreamType').value = camera.pull_stream_type;
+                    document.getElementById('pullStreamUrl').value = camera.pull_stream_url;
+                    document.getElementById('isAudio').value = camera.is_audio;
+                    document.getElementById('deviceRemark').value = camera.device_remark;
+
+                    // Change form to update
+                    document.getElementById('addCameraForm').onsubmit = async function (event) {
+                        event.preventDefault();
+                        const updatedCameraData = {
+                            device_name: document.getElementById('deviceName').value,
+                            pull_stream_type: parseInt(document.getElementById('pullStreamType').value),
+                            pull_stream_url: document.getElementById('pullStreamUrl').value,
+                            device_remark: document.getElementById('deviceRemark').value,
+                            is_audio: parseInt(document.getElementById('isAudio').value)
+                        };
+
+                        try {
+                            const updateResponse = await fetch(`${API_BASE_URL}/edit_camera/${deviceId}?token=${TOKEN}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(updatedCameraData),
+                            });
+
+                            const updateResult = await updateResponse.json();
+
+                            if (updateResponse.ok) {
+                                alert('摄像头更新成功！');
+                                window.location.href = 'camera_management.html';
+                            } else {
+                                alert('更新摄像头失败: ' + updateResult.error);
+                            }
+                        } catch (error) {
+                            console.error('Error updating camera:', error);
+                            alert('更新摄像头时发生网络错误');
+                        }
+                    };
+                } else {
+                    alert('未找到摄像头数据进行编辑。');
+                }
+            } catch (error) {
+                console.error('Error fetching camera for edit:', error);
+                alert('加载摄像头数据时发生错误。');
+            }
+        }
+
+        // Check for 'editDeviceId' in URL query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const editDeviceId = urlParams.get('editDeviceId');
+        if (editDeviceId) {
+            loadCameraForEdit(editDeviceId);
+            document.title = '编辑摄像头';
+            document.querySelector('h1').textContent = '编辑摄像头';
+        }
+    </script>
+</body>
+
+</html>

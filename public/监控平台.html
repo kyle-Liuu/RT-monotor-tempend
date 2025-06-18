@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频融合平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #0a1128 0%, #1e3c72 100%);
+            color: #00d4ff;
+            overflow: hidden;
+            height: 100vh;
+            font-size: 12px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 123, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(0, 255, 127, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(90deg, transparent 98%, rgba(0, 212, 255, 0.1) 100%),
+                linear-gradient(0deg, transparent 98%, rgba(0, 212, 255, 0.1) 100%);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 123, 255, 0.2) 100%);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            padding: 0 30px;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px #00d4ff;
+            flex: 1;
+            text-align: center;
+        }
+
+        .back-button {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border: none;
+            color: #000;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .back-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .back-button:hover::before {
+            left: 100%;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(0, 212, 255, 0.8);
+        }
+
+        .left-panel {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .left-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 212, 255, 0.05), transparent);
+            animation: panelScan 8s linear infinite;
+        }
+
+        @keyframes panelScan {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-rows: 2fr 1fr;
+            gap: 10px;
+        }
+
+        .video-section {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .video-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            animation: scanLine 3s linear infinite;
+        }
+
+        @keyframes scanLine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .video-frame {
+            width: 100%;
+            height: 80%;
+            background: #1a1a2e;
+            border: 2px solid #00d4ff;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                inset 0 0 50px rgba(0, 212, 255, 0.1),
+                0 0 30px rgba(0, 212, 255, 0.2);
+        }
+
+        .video-frame::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                linear-gradient(45deg, transparent 48%, rgba(0, 212, 255, 0.1) 49%, rgba(0, 212, 255, 0.1) 51%, transparent 52%),
+                linear-gradient(-45deg, transparent 48%, rgba(0, 212, 255, 0.1) 49%, rgba(0, 212, 255, 0.1) 51%, transparent 52%);
+            background-size: 20px 20px;
+            animation: videoGrid 10s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes videoGrid {
+            0% { background-position: 0 0, 0 0; }
+            100% { background-position: 20px 20px, -20px 20px; }
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            z-index: 2;
+        }
+
+        .video-bottom-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            z-index: 2;
+        }
+
+        .stats-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, rgba(0, 212, 255, 0.2) 0%, transparent 70%);
+            border-radius: 0 8px 0 100%;
+        }
+
+        .right-panel {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .section-title {
+            color: #00d4ff;
+            font-size: 14px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-title::after {
+            content: '>>>';
+            position: absolute;
+            right: 0;
+            top: 0;
+            color: #00d4ff;
+            font-size: 10px;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            margin: 4px 0;
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .menu-item:hover {
+            background: rgba(0, 212, 255, 0.2);
+            transform: translateX(5px);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        }
+
+        .menu-item::before {
+            content: '📁';
+            margin-right: 6px;
+            font-size: 12px;
+        }
+
+        .menu-item::after {
+            content: '';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            background: #00d4ff;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .menu-item:hover::after {
+            opacity: 1;
+            animation: pulse 1s infinite;
+        }
+
+        .cpu-chart {
+            height: 120px;
+            background: #0f1419;
+            border: 1px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cpu-bar {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, #00ff00 0%, #ffff00 50%, #ff0000 100%);
+            height: 30%;
+            border-radius: 2px 2px 0 0;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        .cpu-labels {
+            position: absolute;
+            left: 5px;
+            top: 5px;
+            font-size: 10px;
+            color: #00d4ff;
+        }
+
+        .storage-bar {
+            width: 100%;
+            height: 20px;
+            background: #0f1419;
+            border: 1px solid #00d4ff;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .storage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #0099cc);
+            width: 75%;
+            border-radius: 9px;
+            animation: loading 3s infinite;
+        }
+
+        @keyframes loading {
+            0%, 100% { width: 75%; }
+            50% { width: 78%; }
+        }
+
+        .gauge {
+            width: 80px;
+            height: 80px;
+            border: 3px solid #00d4ff;
+            border-radius: 50%;
+            position: relative;
+            margin: 10px auto;
+        }
+
+        .gauge::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: 5px;
+            bottom: 5px;
+            border: 2px dashed rgba(0, 212, 255, 0.5);
+            border-radius: 50%;
+            animation: rotate 10s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .gauge-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .chart-container {
+            height: 80px;
+            background: #0f1419;
+            border: 1px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-line {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            height: 60px;
+            background: linear-gradient(45deg, transparent 49%, #00d4ff 50%, transparent 51%);
+            background-size: 10px 10px;
+            animation: chartMove 5s linear infinite;
+        }
+
+        @keyframes chartMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 100px 0; }
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin: 6px 0;
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+
+        .alert-item:hover {
+            background: rgba(0, 212, 255, 0.2);
+            transform: translateX(3px);
+        }
+
+        .alert-item::before {
+            content: '';
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            width: 8px;
+            height: 8px;
+            background: #ff4444;
+            border-radius: 50%;
+            animation: alertBlink 2s infinite;
+        }
+
+        @keyframes alertBlink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .alert-icon {
+            width: 40px;
+            height: 40px;
+            background: #00d4ff;
+            border-radius: 4px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .alert-info {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-size: 14px;
+            color: #00d4ff;
+            margin-bottom: 4px;
+        }
+
+        .alert-time {
+            font-size: 12px;
+            color: rgba(0, 212, 255, 0.7);
+        }
+
+        .time-display {
+            text-align: center;
+            font-size: 12px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .time-display::before {
+            content: '●';
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #00ff00;
+            animation: pulse 1s infinite;
+        }
+
+        .video-bg {
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><rect width="800" height="400" fill="%23001122"/><rect x="50" y="150" width="700" height="80" fill="%23003366" rx="8"/><rect x="60" y="160" width="680" height="60" fill="%23002244" rx="4"/><text x="400" y="195" text-anchor="middle" fill="%2300d4ff" font-family="Arial" font-size="16">光电24-南照两桥之间</text></svg>') center/cover;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-button">后台</button>
+            <h1>视频融合平台</h1>
+            <div style="width: 60px;"></div>
+        </div>
+
+        <div class="left-panel">
+            <div class="section-title">设备列表</div>
+            <div class="menu-item">小米监测站点</div>
+            <div class="menu-item">工程头站口</div>
+            <div class="menu-item">幼儿园展示</div>
+            <div class="menu-item">教室展示</div>
+            <div class="menu-item">办公室展示</div>
+
+            <div class="section-title" style="margin-top: 30px;">内存/CPU</div>
+            <div class="cpu-labels">
+                <div>内存 🟢 CPU 🟡</div>
+            </div>
+            <div class="cpu-chart">
+                <div class="cpu-bar"></div>
+                <div style="position: absolute; bottom: 5px; left: 5px; font-size: 10px; color: #00d4ff;">
+                    14:42:33 &nbsp;&nbsp; 14:43:08 &nbsp;&nbsp; 14:43:43 &nbsp;&nbsp; 14:44:18
+                </div>
+                <div style="position: absolute; left: 5px; top: 20px; font-size: 10px; color: #00d4ff;">
+                    100%<br>80%<br>60%<br>40%<br>20%<br>0%
+                </div>
+            </div>
+
+            <div class="section-title" style="margin-top: 30px;">存储</div>
+            <div class="storage-bar">
+                <div class="storage-fill"></div>
+            </div>
+            <div style="text-align: center; font-size: 12px; color: #00d4ff; margin-top: 10px;">
+                0 &nbsp;&nbsp;&nbsp; 20 &nbsp;&nbsp;&nbsp; 40 &nbsp;&nbsp;&nbsp; 60 &nbsp;&nbsp;&nbsp; 80 &nbsp;&nbsp;&nbsp; 100
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="section-title">实时调阅</div>
+                <div class="time-display">2025-04-07 星期一 14:41:22</div>
+                <div class="video-frame">
+                    <div class="video-bg"></div>
+                    <div class="video-bottom-overlay">光电24-南照两桥之间</div>
+                </div>
+            </div>
+
+            <div class="stats-section">
+                <div class="stat-card">
+                    <div class="section-title">设备状态</div>
+                    <div style="display: flex; justify-content: space-around; align-items: center; height: 100px;">
+                        <div>
+                            <div class="gauge">
+                                <div class="gauge-value">29</div>
+                            </div>
+                            <div style="text-align: center; font-size: 10px; color: #00d4ff;">
+                                启动: 29 未启动: 1471
+                            </div>
+                        </div>
+                        <div>
+                            <div class="gauge">
+                                <div class="gauge-value">25</div>
+                            </div>
+                            <div style="text-align: center; font-size: 10px; color: #00d4ff;">
+                                在线: 25 离线: 4
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="section-title">带宽使用(Mbps)</div>
+                    <div style="font-size: 10px; color: #00d4ff; margin-bottom: 10px;">
+                        🟢 上行宽带 🟡 下行宽带
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-line"></div>
+                        <div style="position: absolute; bottom: 5px; left: 0; right: 0; font-size: 8px; color: #00d4ff; text-align: center;">
+                            14:41:53 14:42:13 14:42:33 14:42:53 14:43:13 14:43:33 14:43:53 14:44:13
+                        </div>
+                        <div style="position: absolute; left: 5px; top: 5px; font-size: 8px; color: #00d4ff;">
+                            80<br>70<br>60<br>50<br>40<br>30<br>20<br>10<br>0
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="section-title">预警调试</div>
+            
+            <div class="alert-item">
+                <div class="alert-icon">🌿</div>
+                <div class="alert-info">
+                    <div class="alert-title">烟火告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:44:19</div>
+                    <div style="font-size: 10px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+
+            <div class="alert-item">
+                <div class="alert-icon">🚶</div>
+                <div class="alert-info">
+                    <div class="alert-title">安全帽告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:39:30</div>
+                    <div style="font-size: 12px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+
+            <div class="alert-item">
+                <div class="alert-icon">🌿</div>
+                <div class="alert-info">
+                    <div class="alert-title">烟火告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:34:19</div>
+                    <div style="font-size: 12px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+
+            <div class="alert-item">
+                <div class="alert-icon">🚶</div>
+                <div class="alert-info">
+                    <div class="alert-title">安全帽告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:29:30</div>
+                    <div style="font-size: 12px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+
+            <div class="alert-item">
+                <div class="alert-icon">🌿</div>
+                <div class="alert-info">
+                    <div class="alert-title">烟火告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:24:17</div>
+                    <div style="font-size: 12px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 实时更新时间
+        function updateTime() {
+            const now = new Date();
+            const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            const timeString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${weekdays[now.getDay()]} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            
+            const timeDisplay = document.querySelector('.time-display');
+            if (timeDisplay) {
+                timeDisplay.textContent = timeString;
+            }
+        }
+
+        // 每秒更新时间
+        setInterval(updateTime, 1000);
+        
+        // 初始化时间
+        updateTime();
+
+        // 添加菜单项点击效果
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // 移除其他项的选中状态
+                document.querySelectorAll('.menu-item').forEach(i => i.style.background = 'rgba(0, 212, 255, 0.1)');
+                // 设置当前项为选中状态
+                this.style.background = 'rgba(0, 212, 255, 0.3)';
+            });
+        });
+
+        // 后台按钮点击事件
+        document.querySelector('.back-button').addEventListener('click', function() {
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+            }, 150);
+            
+            // 这里可以添加实际的后台跳转逻辑
+            console.log('跳转到后台管理');
+        });
+
+        // 模拟数据变化
+        setInterval(() => {
+            const cpuBar = document.querySelector('.cpu-bar');
+            const randomHeight = Math.random() * 60 + 20; // 20% to 80%
+            cpuBar.style.height = randomHeight + '%';
+        }, 3000);
+
+        // 添加鼠标移动粒子效果
+        document.addEventListener('mousemove', function(e) {
+            createParticle(e.clientX, e.clientY);
+        });
+
+        function createParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.style.position = 'fixed';
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            particle.style.width = '2px';
+            particle.style.height = '2px';
+            particle.style.background = '#00d4ff';
+            particle.style.borderRadius = '50%';
+            particle.style.pointerEvents = 'none';
+            particle.style.zIndex = '1000';
+            particle.style.opacity = '0.8';
+            document.body.appendChild(particle);
+
+            // 粒子动画
+            const animation = particle.animate([
+                { transform: 'translate(0, 0) scale(1)', opacity: 0.8 },
+                { transform: `translate(${Math.random() * 40 - 20}px, ${Math.random() * 40 - 20}px) scale(0)`, opacity: 0 }
+            ], {
+                duration: 1000,
+                easing: 'ease-out'
+            });
+
+            animation.onfinish = () => {
+                document.body.removeChild(particle);
+            };
+        }
+    </script>
+</body>
+</html>

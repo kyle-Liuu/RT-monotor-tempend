@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频融合平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #0a1128 0%, #1e3c72 100%);
+            color: #00d4ff;
+            overflow: hidden;
+            height: 100vh;
+            font-size: 12px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(0, 123, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(0, 255, 127, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(90deg, transparent 98%, rgba(0, 212, 255, 0.1) 100%),
+                linear-gradient(0deg, transparent 98%, rgba(0, 212, 255, 0.1) 100%);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 123, 255, 0.2) 100%);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            padding: 0 30px;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.3), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px #00d4ff;
+            flex: 1;
+            text-align: center;
+        }
+
+        .back-button {
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border: none;
+            color: #000;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .back-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .back-button:hover::before {
+            left: 100%;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(0, 212, 255, 0.8);
+        }
+
+        .left-panel {
+            background: none;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            position: relative;
+            overflow: visible;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            height: calc(100vh - 80px);
+        }
+        .left-scroll {
+            overflow-y: auto;
+            max-height: 180px;
+            min-height: 120px;
+        }
+        .panel-box {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 18px;
+            position: relative;
+        }
+        .panel-title {
+            color: #00d4ff;
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .device-tree-box {
+            height: 140px;
+            overflow-y: auto;
+            margin-bottom: 0;
+        }
+        .device-tree li {
+            margin: 2px 0;
+            cursor: pointer;
+            user-select: none;
+            color: #00d4ff;
+            font-size: 13px;
+            position: relative;
+        }
+        .device-tree .tree-toggle {
+            display: inline-block;
+            width: 16px;
+            text-align: center;
+            margin-right: 4px;
+            color: #00eaff;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .device-tree ul {
+            margin-left: 18px;
+            border-left: 1px dashed #00d4ff44;
+            padding-left: 8px;
+            display: none;
+        }
+        .device-tree li.expanded > ul {
+            display: block;
+        }
+        .device-tree li .tree-toggle {
+            cursor: pointer;
+        }
+        .status-panel {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 18px;
+        }
+        .status-title { color: #00d4ff; font-size: 14px; margin-bottom: 10px; }
+        .status-gauges { display: flex; justify-content: space-around; align-items: center; }
+        .gauge-wrap { text-align: center; }
+        .gauge-labels { display: flex; justify-content: center; gap: 10px; font-size: 12px; color: #00d4ff; margin-top: 6px; }
+        .gauge-canvas { background: #0a2a4d; border-radius: 50%; }
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .video-section {
+            flex: 1 1 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: stretch;
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        .video-frame {
+            width: 100%;
+            height: 100%;
+            padding-bottom: 0;
+            background: #1a1a2e;
+            border: 2px solid #00d4ff;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                inset 0 0 50px rgba(0, 212, 255, 0.1),
+                0 0 30px rgba(0, 212, 255, 0.2);
+            flex: 1 1 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .video-frame img {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #1a1a2e;
+        }
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            z-index: 2;
+        }
+        .video-bottom-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #00d4ff;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            z-index: 2;
+        }
+        .stats-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .gauge {
+            width: 80px;
+            height: 80px;
+            border: 3px solid #00d4ff;
+            border-radius: 50%;
+            position: relative;
+            margin: 10px auto;
+        }
+        .gauge::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: 5px;
+            bottom: 5px;
+            border: 2px dashed rgba(0, 212, 255, 0.5);
+            border-radius: 50%;
+            animation: rotate 10s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .gauge-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        .stat-card {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 0;
+        }
+        .stat-flex {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            height: 100px;
+        }
+        .stat-label {
+            text-align: center;
+            font-size: 10px;
+            color: #00d4ff;
+        }
+        .chart-container {
+            height: 80px;
+            background: #0f1419;
+            border: 1px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        .chart-line {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            height: 60px;
+            background: linear-gradient(45deg, transparent 49%, #00d4ff 50%, transparent 51%);
+            background-size: 10px 10px;
+            animation: chartMove 5s linear infinite;
+        }
+        @keyframes chartMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 100px 0; }
+        }
+        .right-panel {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            height: calc(100vh - 80px);
+            overflow: hidden;
+        }
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            margin: 4px 0;
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        .menu-item:hover {
+            background: rgba(0, 212, 255, 0.2);
+            transform: translateX(5px);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        }
+        .menu-item::before {
+            content: '📁';
+            margin-right: 6px;
+            font-size: 12px;
+        }
+        .menu-item::after {
+            content: '';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            background: #00d4ff;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .menu-item:hover::after {
+            opacity: 1;
+            animation: pulse 1s infinite;
+        }
+        .alert-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin: 6px 0;
+            background: rgba(0, 212, 255, 0.1);
+            border-left: 3px solid #00d4ff;
+            border-radius: 4px;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        .alert-item:hover {
+            background: rgba(0, 212, 255, 0.2);
+            transform: translateX(3px);
+        }
+        .alert-item::before {
+            content: '';
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            width: 8px;
+            height: 8px;
+            background: #ff4444;
+            border-radius: 50%;
+            animation: alertBlink 2s infinite;
+        }
+        @keyframes alertBlink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        .alert-icon {
+            width: 40px;
+            height: 40px;
+            background: #00d4ff;
+            border-radius: 4px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .alert-info {
+            flex: 1;
+        }
+        .alert-title {
+            font-size: 14px;
+            color: #00d4ff;
+            margin-bottom: 4px;
+        }
+        .alert-time {
+            font-size: 12px;
+            color: rgba(0, 212, 255, 0.7);
+        }
+        .time-display {
+            text-align: center;
+            font-size: 12px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+        .time-display::before {
+            content: '●';
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #00ff00;
+            animation: pulse 1s infinite;
+        }
+        .video-bg {
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><rect width="800" height="400" fill="%23001122"/><rect x="50" y="150" width="700" height="80" fill="%23003366" rx="8"/><rect x="60" y="160" width="680" height="60" fill="%23002244" rx="4"/><text x="400" y="195" text-anchor="middle" fill="%2300d4ff" font-family="Arial" font-size="16">光电24-南照两桥之间</text></svg>') center/cover;
+        }
+        .device-tree {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 20px;
+        }
+        .device-tree li {
+            margin: 2px 0;
+            cursor: pointer;
+            user-select: none;
+            color: #00d4ff;
+            font-size: 13px;
+            position: relative;
+        }
+        .device-tree .tree-toggle {
+            display: inline-block;
+            width: 16px;
+            text-align: center;
+            margin-right: 4px;
+            color: #00eaff;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .device-tree ul {
+            margin-left: 18px;
+            border-left: 1px dashed #00d4ff44;
+            padding-left: 8px;
+            display: none;
+        }
+        .device-tree li.expanded > ul {
+            display: block;
+        }
+        .device-tree li .tree-toggle {
+            cursor: pointer;
+        }
+        .chart-panel { background: #34b2ed; border: 1px solid #00d4ff; border-radius: 8px; padding: 15px; margin-bottom: 18px; }
+        .chart-title { color: #00d4ff; font-size: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .chart-canvas-wrap { width: 100%; height: 120px; position: relative; }
+        .chart-x-labels { position: absolute; bottom: -18px; left: 0; width: 100%; text-align: center; font-size: 10px; color: #00d4ff; }
+        .chart-x-labels-storage { position: absolute; bottom: -18px; left: 0; width: 100%; text-align: center; font-size: 10px; color: #00d4ff; }
+        .chart-y-labels { position: absolute; left: -32px; top: 0; height: 100%; display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: #00d4ff; }
+        .chart-panel-storage { background: #34b2ed; border: 1px solid #00d4ff; border-radius: 8px; padding: 15px; }
+        .video-section .section-title { display: flex; align-items: center; gap: 10px; }
+        .video-section .time-display { margin-bottom: 0; margin-left: 10px; font-size: 12px; color: #00d4ff; background: none; border: none; padding: 0; display: inline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-button">后台</button>
+            <h1>视频融合平台</h1>
+            <div style="width: 60px;"></div>
+        </div>
+
+        <div class="left-panel">
+            <div class="panel-box">
+                <div class="panel-title">设备列表</div>
+                <div class="device-tree-box">
+                    <ul class="device-tree">
+                        <li><span class="tree-toggle">▶</span>小太阳测压站
+                            <ul>
+                                <li>子设备A</li>
+                                <li>子设备B</li>
+                            </ul>
+                        </li>
+                        <li><span class="tree-toggle">▶</span>工程站进口
+                            <ul>
+                                <li>子设备C</li>
+                            </ul>
+                        </li>
+                        <li><span class="tree-toggle">▶</span>幼儿园演示
+                            <ul>
+                                <li>子设备D</li>
+                            </ul>
+                        </li>
+                        <li><span class="tree-toggle">▶</span>教室演示
+                            <ul>
+                                <li>子设备E</li>
+                            </ul>
+                        </li>
+                        <li><span class="tree-toggle">▶</span>办公室演示
+                            <ul>
+                                <li>子设备F</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="chart-panel">
+                <div class="chart-title">内存/CPU <span class="cpu-labels">🟢 内存 🟡 CPU</span></div>
+                <div class="chart-canvas-wrap" style="height:120px;">
+                    <canvas id="memCpuChart" width="320" height="120" style="width:100%;height:100%;background:#34b2ed;border-radius:8px;"></canvas>
+                    <div class="chart-x-labels">14:42:33 &nbsp;&nbsp; 14:43:08 &nbsp;&nbsp; 14:43:43 &nbsp;&nbsp; 14:44:18</div>
+                    <div class="chart-y-labels" style="left:-32px;top:0;height:100%;">
+                        <span>100%</span><span>80%</span><span>60%</span><span>40%</span><span>20%</span><span>0%</span>
+                </div>
+                </div>
+            </div>
+            <div class="chart-panel-storage">
+                <div class="chart-title">存储</div>
+                <div class="chart-canvas-wrap" style="height:80px;">
+                    <canvas id="storageChart" width="320" height="80" style="width:100%;height:100%;background:#34b2ed;border-radius:8px;"></canvas>
+                    <div class="chart-x-labels-storage">0% &nbsp;&nbsp;&nbsp; 20% &nbsp;&nbsp;&nbsp; 40% &nbsp;&nbsp;&nbsp; 60% &nbsp;&nbsp;&nbsp; 80% &nbsp;&nbsp;&nbsp; 100%</div>
+            </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="section-title">实时调阅 <span class="time-display">2025-04-07 星期一 14:41:22</span></div>
+                <div class="video-frame">
+                    <img src="public/video.webp" alt="视频占位" />
+                    <div class="video-bottom-overlay">光电24-南照两桥之间</div>
+                </div>
+            </div>
+                            </div>
+
+        <div class="right-panel">
+            <div class="status-panel">
+                <div class="status-title">设备状态</div>
+                <div class="status-gauges">
+                    <div class="gauge-wrap">
+                        <canvas class="gauge-canvas" width="80" height="80" data-value="29" data-total="1500"></canvas>
+                        <div class="gauge-labels">
+                            <span>启动: 29</span>
+                            <span>未启动: 1471</span>
+                        </div>
+                    </div>
+                    <div class="gauge-wrap">
+                        <canvas class="gauge-canvas" width="80" height="80" data-value="25" data-total="29"></canvas>
+                        <div class="gauge-labels">
+                            <span>在线: 25</span>
+                            <span>离线: 4</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="section-title">预警调试</div>
+            <div class="right-scroll">
+            <div class="alert-item">
+                <img src="public/bus.jpg" class="alert-thumb" style="width:48px;height:48px;border-radius:4px;margin-right:10px;object-fit:cover;" />
+                <div class="alert-info">
+                    <div class="alert-title">烟火告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:44:19</div>
+                    <div style="font-size: 10px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+            <div class="alert-item">
+                <img src="public/bus.jpg" class="alert-thumb" style="width:48px;height:48px;border-radius:4px;margin-right:10px;object-fit:cover;" />
+                <div class="alert-info">
+                    <div class="alert-title">安全帽告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:39:30</div>
+                    <div style="font-size: 12px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+            <div class="alert-item">
+                <img src="public/bus.jpg" class="alert-thumb" style="width:48px;height:48px;border-radius:4px;margin-right:10px;object-fit:cover;" />
+                <div class="alert-info">
+                    <div class="alert-title">烟火告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:34:19</div>
+                    <div style="font-size: 12px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+            <div class="alert-item">
+                <img src="public/bus.jpg" class="alert-thumb" style="width:48px;height:48px;border-radius:4px;margin-right:10px;object-fit:cover;" />
+                <div class="alert-info">
+                    <div class="alert-title">安全帽告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:29:30</div>
+                    <div style="font-size: 12px; color: #00d4ff;">布点名称: 告警设备</div>
+                </div>
+            </div>
+            <div class="alert-item">
+                <img src="public/bus.jpg" class="alert-thumb" style="width:48px;height:48px;border-radius:4px;margin-right:10px;object-fit:cover;" />
+                <div class="alert-info">
+                    <div class="alert-title">烟火告警</div>
+                    <div class="alert-time">抓拍时间: 2025-04-07 14:24:17</div>
+                    <div style="font-size: 12px; color: #00d4ff;">布点名称: 告警设备</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 实时更新时间
+        function updateTime() {
+            const now = new Date();
+            const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            const timeString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${weekdays[now.getDay()]} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            
+            const timeDisplay = document.querySelector('.time-display');
+            if (timeDisplay) {
+                timeDisplay.textContent = timeString;
+            }
+        }
+
+        // 每秒更新时间
+        setInterval(updateTime, 1000);
+        
+        // 初始化时间
+        updateTime();
+
+        // 添加菜单项点击效果
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // 移除其他项的选中状态
+                document.querySelectorAll('.menu-item').forEach(i => i.style.background = 'rgba(0, 212, 255, 0.1)');
+                // 设置当前项为选中状态
+                this.style.background = 'rgba(0, 212, 255, 0.3)';
+            });
+        });
+
+        // 后台按钮点击事件
+        document.querySelector('.back-button').addEventListener('click', function() {
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+            }, 150);
+            
+            // 这里可以添加实际的后台跳转逻辑
+            console.log('跳转到后台管理');
+        });
+
+        // 模拟数据变化
+        setInterval(() => {
+            const cpuBar = document.querySelector('.cpu-bar');
+            const randomHeight = Math.random() * 60 + 20; // 20% to 80%
+            cpuBar.style.height = randomHeight + '%';
+        }, 3000);
+
+        // 添加鼠标移动粒子效果
+        document.addEventListener('mousemove', function(e) {
+            createParticle(e.clientX, e.clientY);
+        });
+
+        function createParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.style.position = 'fixed';
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            particle.style.width = '2px';
+            particle.style.height = '2px';
+            particle.style.background = '#00d4ff';
+            particle.style.borderRadius = '50%';
+            particle.style.pointerEvents = 'none';
+            particle.style.zIndex = '1000';
+            particle.style.opacity = '0.8';
+            document.body.appendChild(particle);
+
+            // 粒子动画
+            const animation = particle.animate([
+                { transform: 'translate(0, 0) scale(1)', opacity: 0.8 },
+                { transform: `translate(${Math.random() * 40 - 20}px, ${Math.random() * 40 - 20}px) scale(0)`, opacity: 0 }
+            ], {
+                duration: 1000,
+                easing: 'ease-out'
+            });
+
+            animation.onfinish = () => {
+                document.body.removeChild(particle);
+            };
+        }
+
+        // 树形菜单折叠功能
+        document.querySelectorAll('.device-tree .tree-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const li = this.parentElement;
+                li.classList.toggle('expanded');
+                this.textContent = li.classList.contains('expanded') ? '▼' : '▶';
+            });
+        });
+
+        // 设备状态环形进度条
+        document.querySelectorAll('.gauge-canvas').forEach(canvas => {
+            const ctx = canvas.getContext('2d');
+            const value = Number(canvas.dataset.value);
+            const total = Number(canvas.dataset.total);
+            const percent = total ? value / total : 0;
+            // 背景环
+            ctx.strokeStyle = '#003366';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(40, 40, 32, 0, 2 * Math.PI);
+            ctx.stroke();
+            // 进度环
+            ctx.strokeStyle = '#00d4ff';
+            ctx.beginPath();
+            ctx.arc(40, 40, 32, -Math.PI/2, -Math.PI/2 + 2 * Math.PI * percent);
+            ctx.stroke();
+            // 数字
+            ctx.fillStyle = '#00d4ff';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(value, 40, 40);
+        });
+
+        // 内存/CPU折线图
+        function drawMemCpuChart() {
+            const canvas = document.getElementById('memCpuChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 模拟数据
+            const memData = [40, 50, 60, 55, 70, 65, 60, 62];
+            const cpuData = [20, 30, 25, 40, 35, 50, 45, 38];
+            const n = memData.length;
+            const w = canvas.width, h = canvas.height;
+            // 背景
+            ctx.fillStyle = '#e6f7ff';
+            ctx.fillRect(0, 0, w, h);
+            // 画折线和填充
+            function drawLine(data, color, fillColor) {
+                ctx.beginPath();
+                for (let i = 0; i < n; i++) {
+                    const x = i * (w / (n - 1));
+                    const y = h - (data[i] / 100) * h;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // 填充
+                ctx.lineTo(w, h);
+                ctx.lineTo(0, h);
+                ctx.closePath();
+                ctx.globalAlpha = 0.18;
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+            drawLine(memData, '#00ff00', '#00ff00');
+            drawLine(cpuData, '#ffd700', '#ffd700');
+        }
+        drawMemCpuChart();
+
+        // 存储折线图
+        function drawStorageChart() {
+            const canvas = document.getElementById('storageChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 模拟数据
+            const data = [10, 20, 30, 50, 40, 60, 80, 70];
+            const n = data.length;
+            const w = canvas.width, h = canvas.height;
+            // 背景
+            ctx.fillStyle = '#e6f7ff';
+            ctx.fillRect(0, 0, w, h);
+            // 折线
+            ctx.beginPath();
+            for (let i = 0; i < n; i++) {
+                const x = i * (w / (n - 1));
+                const y = h - (data[i] / 100) * h;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        drawStorageChart();
+    </script>
+</body>
+</html>

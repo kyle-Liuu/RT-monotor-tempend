@@ -1,0 +1,116 @@
+<div style="
+    display: flex;
+    min-height: 100vh;
+    background-color: #f0f2f5; /* 假设 Art-Design-Pro 的背景色 */
+    font-family: Arial, sans-serif;
+">
+    <div style="
+        width: 210px; /* 侧边栏宽度 */
+        background-color: #304156; /* 侧边栏背景色 */
+        color: #bfcbd9;
+        height: 100vh;
+        position: fixed;
+        left: 0;
+        top: 0;
+        box-shadow: 2px 0 6px rgba(0,0,0,0.1);
+        overflow-y: auto;
+    ">
+        <div style="
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #2b3b4d;
+        ">Art Admin Pro</div>
+        <ul style="list-style: none; padding: 10px 0;">
+            <li
+                style="padding: 12px 20px; cursor: pointer; border-left: 3px solid transparent; color: #f4f4f5; background-color: #263445;">
+                <i class="el-icon-s-home" style="margin-right: 8px;"></i>仪表盘
+            </li>
+            <li style="
+                padding: 12px 20px;
+                cursor: pointer;
+                border-left: 3px solid #409eff; /* 选中状态 */
+                color: #fff;
+                background-color: #2d3e51;
+            " onclick="window.location.hash = '#/monitor'">
+                <i class="el-icon-video-camera" style="margin-right: 8px;"></i>实时监控
+            </li>
+            <li style="padding: 12px 20px; cursor: pointer; border-left: 3px solid transparent;">
+                <i class="el-icon-s-tools" style="margin-right: 8px;"></i>系统管理
+            </li>
+        </ul>
+    </div>
+
+    <div style="
+        margin-left: 210px; /* 与侧边栏宽度一致的左边距 */
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    ">
+        <nav style="
+            height: 50px;
+            background-color: #fff;
+            box-shadow: 0 1px 4px rgba(0,21,41,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+        ">
+            <div style="font-size: 16px;">面包屑导航 > 仪表盘</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span>用户：Admin</span>
+                <button
+                    style="padding: 5px 10px; background-color: #ccc; border: none; border-radius: 3px; cursor: pointer;">退出登录</button>
+            </div>
+        </nav>
+
+        <div style="
+            height: 34px;
+            background: #fff;
+            border-bottom: 1px solid #d8dce5;
+            box-shadow: 0 1px 3px 0 rgba(0,0,0,0.12), 0 0 3px 0 rgba(0,0,0,0.04);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        ">
+            <span style="
+                padding: 4px 10px;
+                margin-right: 5px;
+                border: 1px solid #d8dce5;
+                background-color: #e6f7ff;
+                border-radius: 3px;
+                font-size: 12px;
+                cursor: pointer;
+            ">仪表盘 X</span>
+        </div>
+
+        <div style="
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto; /* 允许内部滚动 */
+        ">
+            <h1 style="color: #333; margin-bottom: 20px;">欢迎来到仪表盘</h1>
+            <div style="
+                min-height: 400px;
+                background-color: #fff;
+                border-radius: 8px;
+                box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+                padding: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #666;
+                font-size: 20px;
+            ">
+                这里是你的仪表盘内容区，各种图表、卡片等...
+                <br>
+                点击左侧“实时监控”菜单查看全屏监控页面。
+            </div>
+        </div>
+    </div>
+</div>

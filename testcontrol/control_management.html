@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>布控管理</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>布控管理</h1>
+        <div class="toolbar">
+            <button onclick="window.location.href='camera_management.html'">摄像头管理</button>
+            <button onclick="refreshControlList()">刷新</button>
+        </div>
+
+        <table id="controlTable">
+            <thead>
+                <tr>
+                    <th>布控ID</th>
+                    <th>视频源ID</th>
+                    <th>布控名称</th>
+                    <th>算法标签</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="editControlModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeEditControlModal()">&times;</span>
+            <h2>编辑布控</h2>
+            <form id="editControlForm">
+                <div class="form-group">
+                    <label for="editControlName">布控名称*</label>
+                    <input type="text" id="editControlName" required placeholder="请输入布控名称">
+                </div>
+                <div class="form-group">
+                    <label>算法标签*</label>
+                    <div id="editAlgoTags" class="checkbox-group">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editControlRemark">备注</label>
+                    <textarea id="editControlRemark" placeholder="请输入布控备注"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeEditControlModal()">取消</button>
+                    <button type="submit">确认</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5001/api';
+        const TOKEN = '123456';
+
+        const STATUS_MAP_CONTROL = {
+            "standby": "待机",
+            "running": "启动"
+        };
+        let YOLO_TASKS = {}; // To store the fetched YOLO task mapping
+        let REVERSE_YOLO_TASKS = {}; // To store mapping from name to ID
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            await fetchYOLOTasks();
+            refreshControlList();
+        });
+
+        async function fetchYOLOTasks() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/get_yolo_config?token=${TOKEN}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch YOLO config');
+                }
+                const config = await response.json();
+                YOLO_TASKS = config.yolo_tasks;
+                for (const tagId in YOLO_TASKS) {
+                    REVERSE_YOLO_TASKS[YOLO_TASKS[tagId]] = parseInt(tagId);
+                }
+            } catch (error) {
+                console.error('Error fetching YOLO tasks:', error);
+                alert('无法加载YOLO算法标签。');
+            }
+        }
+
+        function getAlgoTagName(tagIds) {
+            if (!tagIds || tagIds.length === 0) return '无';
+            return tagIds.map(id => YOLO_TASKS[id] || `未知(${id})`).join(', ');
+        }
+
+        async function refreshControlList() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/get_controls?token=${TOKEN}`);
+                const controls = await response.json();
+
+                const tableBody = document.getElementById('controlTable').getElementsByTagName('tbody')[0];
+                tableBody.innerHTML = ''; // Clear existing rows
+
+                controls.forEach(control => {
+                    const row = tableBody.insertRow();
+                    row.insertCell(0).textContent = control.control_id;
+                    row.insertCell(1).textContent = control.device_id;
+                    row.insertCell(2).textContent = control.control_name;
+                    row.insertCell(3).textContent = getAlgoTagName(control.control_tag);
+                    row.insertCell(4).textContent = STATUS_MAP_CONTROL[control.status] || control.status;
+
+                    const operationsCell = row.insertCell(5);
+
+                    const executeStopButton = document.createElement('button');
+                    executeStopButton.className = control.status === 'running' ? 'btn-stop' : 'btn-start';
+                    executeStopButton.textContent = control.status === 'running' ? '停止布控' : '执行布控';
+                    executeStopButton.onclick = () => control.status === 'running' ? stopControl(control.control_id) : executeControl(control.control_id);
+                    operationsCell.appendChild(executeStopButton);
+
+                    const editButton = document.createElement('button');
+                    editButton.textContent = '编辑';
+                    editButton.onclick = () => openEditControlModal(control);
+                    operationsCell.appendChild(editButton);
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = '删除';
+                    deleteButton.onclick = () => deleteControl(control.control_id);
+                    operationsCell.appendChild(deleteButton);
+                });
+            } catch (error) {
+                console.error('Error fetching controls:', error);
+                alert('加载布控列表失败。');
+            }
+        }
+
+        async function executeControl(controlId) {
+            if (!confirm(`确定要执行布控 ${controlId} 吗？这将启动YOLO任务。`)) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/execute_control/${controlId}?token=${TOKEN}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(`布控执行成功！任务: ${result.tasks.join(', ')}。输出流地址: ${result.output_rtsp_url}`);
+                    refreshControlList();
+                } else {
+                    alert('执行布控失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error executing control:', error);
+                alert('执行布控时发生网络错误。');
+            }
+        }
+
+        async function stopControl(controlId) {
+            if (!confirm(`确定要停止布控 ${controlId} 吗？这将停止YOLO任务。`)) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/stop_control/${controlId}?token=${TOKEN}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('布控停止成功！');
+                    refreshControlList();
+                } else {
+                    alert('停止布控失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error stopping control:', error);
+                alert('停止布控时发生网络错误。');
+            }
+        }
+
+        function openEditControlModal(controlData) {
+            const form = document.getElementById('editControlForm');
+            form.reset(); // Clear previous form data
+
+            document.getElementById('editControlName').value = controlData.control_name;
+            document.getElementById('editControlRemark').value = controlData.control_remark;
+            populateEditAlgoTags(controlData.control_tag);
+
+            document.getElementById('editControlModal').style.display = 'block';
+            form.onsubmit = (event) => submitEditControl(event, controlData.control_id);
+        }
+
+        function closeEditControlModal() {
+            document.getElementById('editControlModal').style.display = 'none';
+        }
+
+        function populateEditAlgoTags(selectedTags = []) {
+            const algoTagsDiv = document.getElementById('editAlgoTags');
+            algoTagsDiv.innerHTML = ''; // Clear existing
+            for (const tagId in YOLO_TASKS) {
+                const tagName = YOLO_TASKS[tagId];
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `edit_tag_${tagId}`;
+                checkbox.value = tagId;
+                checkbox.name = 'edit_algo_tag';
+                if (selectedTags.includes(parseInt(tagId))) {
+                    checkbox.checked = true;
+                }
+
+                const label = document.createElement('label');
+                label.htmlFor = `edit_tag_${tagId}`;
+                label.textContent = tagName;
+
+                const div = document.createElement('div');
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                algoTagsDiv.appendChild(div);
+            }
+        }
+
+        async function submitEditControl(event, controlId) {
+            event.preventDefault();
+            const controlName = document.getElementById('editControlName').value;
+            const controlRemark = document.getElementById('editControlRemark').value;
+            const selectedTags = Array.from(document.querySelectorAll('input[name="edit_algo_tag"]:checked'))
+                .map(cb => parseInt(cb.value));
+
+            if (selectedTags.length === 0) {
+                alert('请至少选择一个算法标签。');
+                return;
+            }
+
+            const updatedControlData = {
+                control_name: controlName,
+                control_tag: selectedTags.join(','),
+                control_remark: controlRemark
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/edit_control/${controlId}?token=${TOKEN}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updatedControlData),
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('布控更新成功！');
+                    closeEditControlModal();
+                    refreshControlList();
+                } else {
+                    alert('更新布控失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error updating control:', error);
+                alert('更新布控时发生网络错误。');
+            }
+        }
+
+
+        async function deleteControl(controlId) {
+            if (!confirm(`确定要删除布控 ${controlId} 吗？`)) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/delete_control/${controlId}?token=${TOKEN}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('布控删除成功！');
+                    refreshControlList();
+                } else {
+                    alert('删除布控失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error deleting control:', error);
+                alert('删除布控时发生网络错误。');
+            }
+        }
+    </script>
+</body>
+
+</html>
